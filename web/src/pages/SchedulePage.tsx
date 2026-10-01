@@ -357,9 +357,6 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
               <HoursSummary classes={built.classes} nameOf={nameOf} />
             ) : tab === "huecos" ? (
               <div>
-                <p className="muted">
-                  Franjas en las que NINGUNA asignatura ni grupo de este horario tiene clase (todos los alumnos de este curso y grupo de teoría pueden asistir), útiles por ejemplo para fijar una tutoría o mover una clase sin choques. No depende de lo que hayas marcado.
-                </p>
                 {gaps ? <ScheduleGapsPanel result={gaps} /> : <p className="muted">Sin datos suficientes.</p>}
               </div>
             ) : (

@@ -37,7 +37,7 @@ export function ScheduleGapsPanel({ result }: { result: ScheduleGapsResult }) {
   return (
     <div>
       <p className="muted" style={{ marginBottom: "0.75rem" }}>
-        Fechas y horas concretas en las que NINGUNA asignatura/grupo tiene clase, dentro del horario habitual del curso ({formatHour(windowStart)}–{formatHour(windowEnd)}), sólo en los días de la semana en los que hay clase de alguna asignatura, y sin contar los festivos.
+        Fechas y horas concretas en las que NINGUNA asignatura ni grupo de este horario tiene clase, útiles por ejemplo para fijar una tutoría o mover una clase sin choques. Solo cuentan los días de la semana con clase, dentro del horario habitual del curso ({formatHour(windowStart)}–{formatHour(windowEnd)}) y sin festivos. No depende de lo que hayas marcado.
       </p>
 
       {months.length === 0 ? (

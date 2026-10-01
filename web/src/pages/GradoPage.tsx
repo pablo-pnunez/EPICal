@@ -61,9 +61,7 @@ export function GradoPage() {
                 <span className="curso-card__num">{shortCurso(curso.curso)}</span>
                 <h2 className="curso-card__name">{curso.curso}</h2>
               </header>
-              {curso.semestres.map((s) => (
-                <SemestreRow key={s.texto} grado={grado} semestre={s} />
-              ))}
+              <CursoMatriz grado={grado} semestres={curso.semestres} />
             </article>
           ))}
         </section>
@@ -100,32 +98,77 @@ export function GradoPage() {
   );
 }
 
-function SemestreRow({ grado, semestre }: { grado: Parameters<typeof pdfHref>[0]; semestre: CatalogSemestre }) {
-  const { label, turno } = parseSemestre(semestre.texto);
+type GradoRef = Parameters<typeof pdfHref>[0];
+
+/** Matriz turno (filas) x semestre (columnas): todas las tarjetas comparten la misma estructura aunque el curso tenga turnos distintos por semestre. */
+function CursoMatriz({ grado, semestres }: { grado: GradoRef; semestres: CatalogSemestre[] }) {
+  const parsed = semestres.map((s) => ({ ...parseSemestre(s.texto), grupos: s.grupos }));
+  const columnas = [...new Set(parsed.map((p) => p.label))];
+  const turnos = [...new Set(parsed.map((p) => p.turno ?? ""))];
+  const hayTurnos = turnos.some((t) => t !== "");
+  const style = { gridTemplateColumns: `${hayTurnos ? "auto " : ""}repeat(${columnas.length}, minmax(0, 1fr))` };
+
   return (
-    <div className="curso-card__row">
-      <div className="curso-card__label">
-        <span>{label}</span>
-        {turno && <span className="curso-card__turno">{turno}</span>}
-      </div>
-      <div className="tile-row">
-        {semestre.grupos.map((p, i) => (
-          <GroupTile key={`${p.id}-${i}`} grado={grado} pdf={p} />
-        ))}
-      </div>
+    <div className="matriz" style={style}>
+      {hayTurnos && <span />}
+      {columnas.map((c) => (
+        <span key={c} className="matriz__col">
+          {c}
+        </span>
+      ))}
+      {turnos.map((turno, i) => (
+        <MatrizFila key={turno} grado={grado} turno={turno} hayTurnos={hayTurnos} primera={i === 0} columnas={columnas} parsed={parsed} />
+      ))}
     </div>
   );
 }
 
-function GroupTile({ grado, pdf }: { grado: Parameters<typeof pdfHref>[0]; pdf: CatalogPdf }) {
-  const label = pdf.etiqueta ? `Grupo ${pdf.etiqueta}` : "Ver horario";
+function MatrizFila({
+  grado,
+  turno,
+  hayTurnos,
+  primera,
+  columnas,
+  parsed,
+}: {
+  grado: GradoRef;
+  turno: string;
+  hayTurnos: boolean;
+  primera: boolean;
+  columnas: string[];
+  parsed: { label: string; turno: string | null; grupos: CatalogPdf[] }[];
+}) {
+  const sep = primera ? "" : " matriz__sep";
+  return (
+    <>
+      {hayTurnos && <span className={`matriz__turno${sep}`}>{turno}</span>}
+      {columnas.map((c) => {
+        const grupos = parsed.filter((p) => p.label === c && (p.turno ?? "") === turno).flatMap((p) => p.grupos);
+        return (
+          <div key={c} className={`tile-row${sep}`}>
+            {grupos.length === 0 ? (
+              <span className="matriz__vacio" aria-label="Sin horario">
+                —
+              </span>
+            ) : (
+              grupos.map((p, i) => <GroupTile key={`${p.id}-${i}`} grado={grado} pdf={p} />)
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function GroupTile({ grado, pdf }: { grado: GradoRef; pdf: CatalogPdf }) {
+  const label = pdf.etiqueta ?? "Ver horario";
   const body = (
     <>
       {label} {pdf.ingles && <EnglishMark />}
     </>
   );
   return pdf.status === "ok" ? (
-    <Link to={pdfHref(grado, pdf)} className="tile">
+    <Link to={pdfHref(grado, pdf)} className="tile" title={pdf.etiqueta ? `Grupo ${pdf.etiqueta}` : undefined}>
       {body}
     </Link>
   ) : (

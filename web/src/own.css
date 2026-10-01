@@ -775,7 +775,7 @@ button {
 }
 .curso-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
 }
 .curso-card {
@@ -791,6 +791,8 @@ button {
   display: flex;
   align-items: baseline;
   gap: 0.6rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border);
 }
 .curso-card__num {
   font-family: var(--font-serif);
@@ -805,34 +807,47 @@ button {
   font-weight: 400;
   color: var(--muted);
 }
-.curso-card__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.8rem;
+.matriz {
+  display: grid;
+  column-gap: 0.8rem;
+  row-gap: 0.8rem;
 }
-.curso-card__label {
-  display: flex;
-  flex-direction: column;
-  min-width: 6rem;
+.matriz__col {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.matriz__turno {
+  padding-top: 0.55rem;
   font-size: 0.82rem;
   font-weight: 600;
 }
-.curso-card__turno {
-  font-size: 0.72rem;
-  font-weight: 400;
+.matriz__sep {
+  padding-top: 0.8rem;
+  border-top: 1px dashed var(--border);
+}
+.matriz__turno.matriz__sep {
+  padding-top: calc(0.8rem + 0.55rem);
+}
+.matriz__vacio {
+  padding-top: 0.55rem;
   color: var(--muted);
 }
 .tile-row {
   display: flex;
   flex-wrap: wrap;
+  align-content: flex-start;
   gap: 0.4rem;
 }
 .tile {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.5rem 0.95rem;
+  justify-content: center;
+  gap: 0.3rem;
+  min-width: 3.2rem;
+  padding: 0.5rem 0.75rem;
   font-size: 0.88rem;
   font-weight: 600;
   color: var(--text);
