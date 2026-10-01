@@ -1,10 +1,8 @@
 import { Clock, ExternalLink, Info, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { CalendarMonthView } from "../components/CalendarMonthView";
 import { EnglishMark } from "../components/EnglishMark";
-import { ModeToggle } from "../components/ModeToggle";
 import { ExportPanel } from "../components/ExportPanel";
 import { HoursSummary } from "../components/HoursSummary";
 import { PracticeGroupBalance } from "../components/PracticeGroupBalance";
@@ -18,7 +16,7 @@ import { downloadBlob } from "../lib/download";
 import { buildEvents, isCourseCalendar, type CalEvent } from "../lib/events";
 import { isPracticeGroup } from "../lib/practiceBalance";
 import { findScheduleGaps } from "../lib/scheduleGaps";
-import { normalizeAcronym, parseSelection, reducePerActivity, serializeSelection, sortGroups, type Mode, type Selection } from "../lib/selection";
+import { normalizeAcronym, parseSelection, serializeSelection, sortGroups, type Selection } from "../lib/selection";
 
 type Tab = "calendario" | "semana" | "resumen" | "huecos" | "practicas";
 const TABS: Array<[Tab, string]> = [
@@ -113,9 +111,6 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
   const fromYear = (location.state as { fromYear?: string } | null)?.fromYear;
   const [sp, setSp] = useSearchParams();
   const sched = useAsync(() => getSchedule(id), [id]);
-  // Hueco de la barra superior donde se pinta el conmutador de modo.
-  const [topbarSlot, setTopbarSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => setTopbarSlot(document.getElementById("topbar-actions")), []);
   const status = useAsync(getStatus, []);
   const calendar = useAsync(getAcademicCalendar, []);
   const [excelBusy, setExcelBusy] = useState<string | null>(null);
@@ -154,8 +149,7 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
 
   const meta = useMemo(() => new Map(subjects.map((s) => [s.acronym, s])), [subjects]);
 
-  // ---- Selección y modo (viven en la URL: enlaces compartibles) ----
-  const mode: Mode = sp.get("m") === "alumno" ? "alumno" : "profesor";
+  // ---- Selección (vive en la URL: enlaces compartibles) ----
   const selection = useMemo<Selection>(() => {
     const raw = parseSelection(sp.get("s"));
     const out: Selection = {};
@@ -165,14 +159,15 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
       const valid = groups.length === 0 ? m.groups : groups.filter((g) => m.groups.includes(g));
       if (valid.length > 0) out[acr] = sortGroups(valid);
     }
-    return mode === "alumno" ? reducePerActivity(out) : out;
-  }, [sp, meta, mode]);
+    return out;
+  }, [sp, meta]);
 
   const setSelection = useCallback(
     (next: Selection) => {
       setSp(
         (prev) => {
           const p = new URLSearchParams(prev);
+          p.delete("m"); // parámetro del antiguo modo alumno, ya sin uso (enlaces viejos)
           // Si están todos los grupos, la URL guarda sólo la asignatura (más corta; "sin grupos" = todos).
           const compact: Selection = {};
           for (const [acr, groups] of Object.entries(next)) compact[acr] = groups.length === (meta.get(acr)?.groups.length ?? -1) ? [] : groups;
@@ -184,27 +179,6 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
       );
     },
     [setSp, meta]
-  );
-
-  const changeMode = useCallback(
-    (next: Mode) => {
-      setSp(
-        (prev) => {
-          const p = new URLSearchParams(prev);
-          if (next === "alumno") p.set("m", "alumno");
-          else p.delete("m");
-          // Al pasar a alumno se deja un único grupo por tipo y se escribe ya en la URL, para que todo sea coherente.
-          if (next === "alumno") {
-            const reduced = reducePerActivity(selection);
-            if (Object.keys(reduced).length === 0) p.delete("s");
-            else p.set("s", serializeSelection(reduced));
-          }
-          return p;
-        },
-        { replace: true }
-      );
-    },
-    [setSp, selection]
   );
 
   const tab: Tab = isTab(sp.get("v")) ? (sp.get("v") as Tab) : "calendario";
@@ -284,7 +258,6 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
 
   return (
     <div>
-      {topbarSlot && createPortal(<ModeToggle mode={mode} onChange={changeMode} />, topbarSlot)}
       <nav className="crumbs" aria-label="Ruta">
         <Link to="/">Inicio</Link>
         {loc && (
@@ -335,7 +308,7 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
         <aside className="schedule__side panel">
           <h2>Asignaturas</h2>
           <p className="muted picker__intro">Marca las que cursas y elige tus grupos. Cuatrimestre {data.cuatrimestre}.</p>
-          <SubjectPicker subjects={subjects} sections={data.sections} selection={selection} mode={mode} onChange={setSelection} onExcel={handleExcel} excelBusy={excelBusy} />
+          <SubjectPicker subjects={subjects} sections={data.sections} selection={selection} onChange={setSelection} onExcel={handleExcel} excelBusy={excelBusy} />
           {excelError && <ErrorBox>{excelError}</ErrorBox>}
         </aside>
 

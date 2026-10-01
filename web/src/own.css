@@ -712,49 +712,6 @@ button {
   background: var(--warn-bg);
 }
 
-/* --- Modo profesor / alumno --- */
-.segmented {
-  display: inline-flex;
-  margin-bottom: 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.segmented button {
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--muted);
-  padding: 0.3rem 0.9rem;
-  font-size: 0.82rem;
-}
-.segmented button.on {
-  background: var(--accent-bg);
-  color: var(--accent);
-  font-weight: 600;
-}
-.subject__body--student {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.9rem;
-  padding-left: 1.9rem;
-}
-.student-pick {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
-  color: var(--text);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.student-pick select {
-  width: auto;
-  padding: 0.25rem 0.4rem;
-  font-size: 0.82rem;
-}
-
 /* --- Barra de exportación --- */
 .toolbar {
   margin-bottom: 1rem;
@@ -835,14 +792,6 @@ button {
   font-size: 0.8rem;
 }
 
-.topbar__actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-}
-.topbar__actions .segmented {
-  margin-bottom: 0;
-}
 @media (max-width: 640px) {
   .topbar__tag {
     display: none;
@@ -1064,5 +1013,5 @@ button {
 }
 
 .theme-toggle {
-  margin-left: 0.6rem;
+  margin-left: auto;
 }

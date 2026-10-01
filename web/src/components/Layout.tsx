@@ -22,8 +22,6 @@ export function Layout() {
           <span>EPIcal</span>
         </Link>
         <span className="topbar__tag">Horarios de la EPI Gijón</span>
-        {/* Hueco para controles de la página actual (p. ej. el modo Profesor/Alumno, que se inyecta por portal). */}
-        <div id="topbar-actions" className="topbar__actions" />
         <ThemeToggle />
       </header>
       <main className="content">

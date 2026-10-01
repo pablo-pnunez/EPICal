@@ -2,7 +2,7 @@ import { ChevronDown, FileSpreadsheet, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ACTIVITY_LABEL, ACTIVITY_ORDER, activityOf, isEnglishGroup, type Activity } from "../lib/events";
 import { fold } from "../lib/catalog";
-import { sortGroups, type Mode, type Selection } from "../lib/selection";
+import { sortGroups, type Selection } from "../lib/selection";
 import type { ScheduleSection } from "../types";
 import { EnglishMark } from "./EnglishMark";
 
@@ -20,7 +20,6 @@ interface Props {
   subjects: SubjectMeta[];
   sections: ScheduleSection[];
   selection: Selection;
-  mode: Mode;
   onChange: (next: Selection) => void;
   onExcel: (acronym: string) => void;
   excelBusy: string | null;
@@ -39,7 +38,7 @@ function groupsByActivity(groups: string[]): Array<[Activity, string[]]> {
   return ACTIVITY_ORDER.filter((a) => map.has(a)).map((a) => [a, map.get(a)!]);
 }
 
-export function SubjectPicker({ subjects, sections, selection, mode, onChange, onExcel, excelBusy }: Props) {
+export function SubjectPicker({ subjects, sections, selection, onChange, onExcel, excelBusy }: Props) {
   const [filter, setFilter] = useState("");
   // Asignaturas con el detalle de grupos desplegado (por defecto todas colapsadas).
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -77,10 +76,6 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
     return res;
   }, [selectedSubjects, meta, selection]);
 
-  function firstPerActivity(groups: string[]): string[] {
-    return groupsByActivity(groups).map(([, gs]) => gs[0]!);
-  }
-
   function toggleSubject(s: SubjectMeta) {
     const next = { ...selection };
     if (next[s.acronym]) {
@@ -90,7 +85,7 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
         e.delete(s.acronym);
         return e;
       });
-    } else next[s.acronym] = mode === "alumno" ? firstPerActivity(s.groups) : sortGroups(s.groups);
+    } else next[s.acronym] = sortGroups(s.groups);
     onChange(next);
   }
 
@@ -112,12 +107,6 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
     setGroups(s.acronym, allOn ? cur.filter((g) => !groups.includes(g)) : [...new Set([...cur, ...groups])]);
   }
 
-  /** Modo alumno: un único grupo por tipo de actividad ("" = ninguno). */
-  function chooseGroup(s: SubjectMeta, act: Activity, group: string) {
-    const others = (selection[s.acronym] ?? []).filter((g) => activityOf(g) !== act);
-    setGroups(s.acronym, group ? [...others, group] : others);
-  }
-
   /** Activa/desactiva un tipo (p. ej. PL) en TODAS las asignaturas seleccionadas a la vez. */
   function toggleActivityGlobal(act: Activity) {
     const st = activityState.get(act);
@@ -135,7 +124,7 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
 
   function selectAll() {
     const next: Selection = {};
-    for (const s of subjects) next[s.acronym] = mode === "alumno" ? firstPerActivity(s.groups) : sortGroups(s.groups);
+    for (const s of subjects) next[s.acronym] = sortGroups(s.groups);
     onChange(next);
   }
 
@@ -160,7 +149,7 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
         </div>
       )}
 
-      {mode === "profesor" && selectedSubjects.length > 0 && activityState.size > 1 && (
+      {selectedSubjects.length > 0 && activityState.size > 1 && (
         <div className="picker__activities" role="group" aria-label="Mostrar u ocultar un tipo de actividad en todas las asignaturas seleccionadas">
           <span className="muted">Mostrar:</span>
           {ACTIVITY_ORDER.filter((a) => activityState.has(a)).map((a) => {
@@ -194,7 +183,7 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
                         <strong>{s.name}</strong>
                         <small>
                           {s.name !== s.acronym && s.acronym}
-                          {selected && !isOpen && <span className="subject__summary">{s.name !== s.acronym && " · "}{summarize(cur, s.groups.length, mode)}</span>}
+                          {selected && !isOpen && <span className="subject__summary">{s.name !== s.acronym && " · "}{summarize(cur, s.groups.length)}</span>}
                         </small>
                       </span>
                       {showEnglish && s.english && <EnglishMark />}
@@ -206,7 +195,7 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
                       </button>
                     )}
                   </div>
-                  {selected && isOpen && mode === "profesor" && (
+                  {selected && isOpen && (
                     <div className="subject__body">
                       {groupsByActivity(s.groups).map(([act, groups]) => {
                         const allOn = groups.every((g) => cur.includes(g));
@@ -229,33 +218,6 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
                       <ExcelButton s={s} onExcel={onExcel} excelBusy={excelBusy} />
                     </div>
                   )}
-                  {selected && isOpen && mode === "alumno" && (
-                    <div className="subject__body subject__body--student">
-                      {groupsByActivity(s.groups).map(([act, groups]) => {
-                        const chosen = cur.find((g) => activityOf(g) === act) ?? "";
-                        return (
-                          <label key={act} className="student-pick" title={ACTIVITY_LABEL[act]}>
-                            <span>{act}</span>
-                            {groups.length === 1 ? (
-                              <button type="button" className={`chip ${chosen ? "chip--on" : ""}`} aria-pressed={!!chosen} onClick={() => chooseGroup(s, act, chosen ? "" : groups[0]!)}>
-                                {groups[0]}
-                              </button>
-                            ) : (
-                              <select value={chosen} onChange={(e) => chooseGroup(s, act, e.target.value)}>
-                                <option value="">— ninguno —</option>
-                                {groups.map((g) => (
-                                  <option key={g} value={g}>
-                                    {g}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          </label>
-                        );
-                      })}
-                      <ExcelButton s={s} onExcel={onExcel} excelBusy={excelBusy} />
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -268,8 +230,8 @@ export function SubjectPicker({ subjects, sections, selection, mode, onChange, o
 }
 
 /** Resumen de los grupos marcados, visible con la asignatura colapsada. */
-function summarize(selected: string[], total: number, mode: Mode): string {
-  if (mode === "alumno" || selected.length <= 4) return selected.join(" · ");
+function summarize(selected: string[], total: number): string {
+  if (selected.length <= 4) return selected.join(" · ");
   return selected.length === total ? "todos los grupos" : `${selected.length} de ${total} grupos`;
 }
 
