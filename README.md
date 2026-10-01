@@ -117,11 +117,44 @@ bash deploy/install.sh
 
 No pisa `.env` ni los datos descargados.
 
+### Actualización automática desde Git (opcional)
+
+Para que cada commit que hagas en `main` llegue solo al servidor, instala (o reinstala) con:
+
+```bash
+cd EPICal && bash deploy/install.sh --auto-update
+```
+
+Un temporizador de systemd (`epical-update.timer`) mira cada ~10 minutos si hay commits nuevos en la rama que sigue ese clon. Si los hay:
+
+1. avanza el clon (solo si es un avance limpio, nunca reescribe historia),
+2. vuelve a ejecutar `deploy/install.sh` (reconstruye y reinicia el servicio),
+3. comprueba que el servicio responde (`/healthz`) y que sigue vivo unos segundos después,
+4. **si algo falla, vuelve al commit anterior**, lo reinstala y apunta el commit malo para **no reintentarlo** hasta que llegue otro nuevo.
+
+Así, desde que haces `git push` hasta que está desplegado pasan unos 10-15 minutos. Es un modelo `pull`: el servidor consulta a GitHub, así que no hace falta abrirlo a internet ni guardar credenciales (el repositorio es público).
+
+```bash
+systemctl list-timers epical-update.timer     # cuándo toca la próxima comprobación
+journalctl -u epical-update -n 50 --no-pager  # qué hizo la última vez (versión desplegada, retrocesos…)
+systemctl start epical-update.service         # comprobar y desplegar ahora mismo
+cat /var/lib/epical/update-last-ok            # fecha y commit de la última actualización correcta
+bash deploy/install.sh --disable-auto-update  # desactivarla
+```
+
+Cosas que conviene saber:
+
+- **El clon tiene que seguir en su sitio**: la actualización hace el `git pull` en la carpeta desde la que instalaste (queda guardada en `/opt/epical/.source-dir`). No edites archivos dentro de ese clon.
+- **Un ciclo con retroceso termina en estado «failed»** (`systemctl status epical-update`) a propósito, para que se note; el servicio web sigue funcionando con la versión anterior.
+- **Seguridad**: todo lo que llegue a `main` se despliega solo. Activa la verificación en dos pasos en tu cuenta de GitHub y, si quieres una red de seguridad extra, trabaja en ramas con pull request y fusiona solo lo que revises.
+- **Si fuerzas el historial** (`git push --force`) la actualización se detiene y avisa en el log, porque no puede avanzar de forma limpia; en ese caso actualiza a mano (`git reset --hard origin/main` en el clon y `bash deploy/install.sh`).
+- La lógica (éxito, retroceso, commit malo sin reintento, force-push) se prueba con repositorios temporales con `npm run test:update`. Lo que no se puede probar así es systemd real: si el temporizador no se dispara, mira `systemctl status epical-update.timer`.
+
 ### Desinstalar
 
 ```bash
-systemctl disable --now epical
-rm -rf /opt/epical /var/lib/epical /etc/systemd/system/epical.service
+systemctl disable --now epical epical-update.timer
+rm -rf /opt/epical /var/lib/epical /etc/systemd/system/epical.service /etc/systemd/system/epical-update.*
 userdel epical && systemctl daemon-reload
 ```
 
@@ -133,6 +166,7 @@ userdel epical && systemctl daemon-reload
 | `ifconfig: command not found` | Debian mínimo no lo incluye. Usa `hostname -I` (o `ip -br a`). |
 | `No space left on device` | La instalación necesita ~1 GB y los datos ~200 MB. Amplía el disco del contenedor o la VM. |
 | La web carga pero dice «No se pudo cargar el catálogo» | Aún no ha terminado la primera descarga: espera 1-3 min y mira `journalctl -u epical -f`. Si falla la red, comprueba que la máquina llega a `https://epigijon.uniovi.es`. |
+| La actualización automática no despliega | `systemctl list-timers epical-update.timer` (¿está activo?) y `journalctl -u epical-update -n 50`. Causas típicas: se borró el clon, la rama no sigue a `origin`, o el último commit ya falló y espera uno nuevo. |
 | El servicio no arranca | `journalctl -u epical -n 50 --no-pager`; casi siempre es un valor inválido en `/opt/epical/.env` o el puerto ya ocupado. |
 
 ## Configuración (`.env`)

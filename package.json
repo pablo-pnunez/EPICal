@@ -11,6 +11,7 @@
     "dev:web": "npm --prefix web run dev",
     "refresh": "npm --prefix server run refresh",
     "typecheck": "npm --prefix server run typecheck && npm --prefix web run typecheck",
-    "test:events": "node tests/run-events-test.mjs"
+    "test:events": "node tests/run-events-test.mjs",
+    "test:update": "bash tests/test-update.sh"
   }
 }

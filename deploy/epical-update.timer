@@ -1,0 +1,10 @@
+[Unit]
+Description=EPIcal - buscar actualizaciones cada 10 minutos
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

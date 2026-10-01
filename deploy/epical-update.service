@@ -1,0 +1,10 @@
+[Unit]
+Description=EPIcal - actualizacion automatica desde Git (con retroceso)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/epical/deploy/update.sh
+Nice=10
+TimeoutStartSec=45min
