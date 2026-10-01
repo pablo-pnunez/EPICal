@@ -180,11 +180,8 @@ export function SubjectPicker({ subjects, sections, selection, onChange, onExcel
                     <label className="subject__head">
                       <input type="checkbox" checked={selected} onChange={() => toggleSubject(s)} />
                       <span className="subject__name">
-                        <strong>{s.name}</strong>
-                        <small>
-                          {s.name !== s.acronym && s.acronym}
-                          {selected && !isOpen && <span className="subject__summary">{s.name !== s.acronym && " · "}{summarize(cur, s.groups.length)}</span>}
-                        </small>
+                        <strong title={s.acronym}>{s.name}</strong>
+                        {selected && !isOpen && <small className="subject__summary">{summarize(cur, s.groups.length)}</small>}
                       </span>
                       {showEnglish && s.english && <EnglishMark />}
                       {showCurso && s.curso && <span className="badge">{s.curso}º</span>}

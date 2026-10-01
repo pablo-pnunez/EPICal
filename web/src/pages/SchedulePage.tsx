@@ -1,6 +1,7 @@
-import { Clock, ExternalLink, Info, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronDown, Clock, ExternalLink, Info, TriangleAlert } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { AgendaView } from "../components/AgendaView";
 import { CalendarMonthView } from "../components/CalendarMonthView";
 import { EnglishMark } from "../components/EnglishMark";
 import { ExportPanel } from "../components/ExportPanel";
@@ -11,15 +12,16 @@ import { ErrorBox, Loading } from "../components/Status";
 import { SubjectPicker, type SubjectMeta } from "../components/SubjectPicker";
 import { WeekView } from "../components/WeekView";
 import { getAcademicCalendar, getCatalog, getSchedule, getStatus, requestExcel, useAsync } from "../lib/api";
-import { findByPath, indexPdfs, pdfHref, pdfTitle, shortCurso, type PdfLocation } from "../lib/catalog";
+import { findByPath, indexPdfs, pdfHref, shortCurso, type PdfLocation } from "../lib/catalog";
 import { downloadBlob } from "../lib/download";
 import { buildEvents, isCourseCalendar, type CalEvent } from "../lib/events";
 import { isPracticeGroup } from "../lib/practiceBalance";
 import { findScheduleGaps } from "../lib/scheduleGaps";
 import { normalizeAcronym, parseSelection, serializeSelection, sortGroups, type Selection } from "../lib/selection";
 
-type Tab = "calendario" | "semana" | "resumen" | "huecos" | "practicas";
+type Tab = "agenda" | "calendario" | "semana" | "resumen" | "huecos" | "practicas";
 const TABS: Array<[Tab, string]> = [
+  ["agenda", "Agenda"],
   ["calendario", "Calendario"],
   ["semana", "Semana"],
   ["resumen", "Horas"],
@@ -80,28 +82,25 @@ function relative(iso: string): string {
   return `hace ${Math.round(h / 24)} días`;
 }
 
-const REPROGRAM_NOTE = "El horario vigente es siempre el del PDF original, y el profesorado puede reprogramar actividades a otras fechas, horas o aulas distintas de las del PDF; en ese caso lo comunica en clase o por el campus virtual.";
+const REPROGRAM_NOTE = "El horario vigente es siempre el del PDF original. El profesorado puede reprogramar actividades a otras fechas, horas o aulas distintas de las del PDF; en ese caso lo comunica en clase o por el campus virtual.";
 
-/**
- * Un único aviso compacto: cuándo se actualizó el horario (última vez que se descargó una versión distinta del PDF),
- * cuándo se comprobó por última vez, y la advertencia de reprogramaciones (el detalle va en el tooltip).
- */
-function FreshnessNotice({ pdf, refreshHours }: { pdf: PdfLocation["pdf"]; refreshHours: number }) {
+/** Línea tenue bajo el título: cuándo se actualizó el horario (última descarga con cambios) y enlace al PDF original. */
+function ScheduleMeta({ loc, refreshHours }: { loc: PdfLocation; refreshHours: number }) {
+  const { pdf } = loc;
   const checkedAgoH = pdf.checkedAt ? (Date.now() - new Date(pdf.checkedAt).getTime()) / 3_600_000 : Infinity;
   const stale = checkedAgoH > refreshHours * 2 + 1;
+  const tip = `Fecha de la última vez que se descargó una versión distinta del PDF de la EPI.${pdf.checkedAt ? ` Comprobado ${relative(pdf.checkedAt)}: sigue siendo el PDF vigente.` : ""}`;
   return (
-    <div className={`notice-bar ${stale ? "notice-bar--stale" : ""}`} role="note">
-      <span className="notice-bar__item" title="Fecha de la última vez que se descargó una versión distinta del PDF de la EPI">
-        <Clock size={14} aria-hidden />
-        {pdf.updatedAt ? <>Actualizado el <strong>{DATE_TIME_FMT.format(new Date(pdf.updatedAt))}</strong></> : <>Fecha de actualización desconocida</>}
-        {pdf.checkedAt && <span className="muted"> · comprobado {relative(pdf.checkedAt)}</span>}
+    <p className="schedule-meta muted">
+      <span title={tip}>
+        <Clock size={13} aria-hidden /> {pdf.updatedAt ? <>Actualizado el {DATE_TIME_FMT.format(new Date(pdf.updatedAt))}</> : <>Fecha de actualización desconocida</>}
       </span>
-      {stale && <span className="notice-bar__item notice-bar__warn">Hace tiempo que no se comprueba: verifica el PDF original.</span>}
-      <span className="notice-bar__item notice-bar__warn" title={REPROGRAM_NOTE}>
-        <TriangleAlert size={14} aria-hidden />
-        Puede haber reprogramaciones: manda el PDF original.
-      </span>
-    </div>
+      <a href={pdf.url} target="_blank" rel="noreferrer">
+        PDF original <ExternalLink size={12} aria-hidden />
+      </a>
+      {loc.alsoIn.length > 0 && <span>Compartido con: {loc.alsoIn.map((g) => g.nombre).join(", ")}</span>}
+      {stale && <span className="schedule-meta__warn">Hace tiempo que no se comprueba: verifica el PDF original.</span>}
+    </p>
   );
 }
 
@@ -181,12 +180,24 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
     [setSp, meta]
   );
 
-  const tab: Tab = isTab(sp.get("v")) ? (sp.get("v") as Tab) : "calendario";
+  // Por defecto: agenda (lista) en pantallas estrechas y calendario mensual en las anchas.
+  const [narrow] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 700px)").matches);
+  const defaultTab: Tab = narrow ? "agenda" : "calendario";
+  // Panel de asignaturas (sólo se pliega en pantallas estrechas; en las anchas siempre está abierto, ver CSS).
+  const [pickerOpen, setPickerOpen] = useState(true);
+  const autoCollapsed = useRef(false);
+  useEffect(() => {
+    if (autoCollapsed.current || !data) return;
+    autoCollapsed.current = true;
+    if (Object.keys(selection).length > 0) setPickerOpen(false);
+  }, [data, selection]);
+
+  const tab: Tab = isTab(sp.get("v")) ? (sp.get("v") as Tab) : defaultTab;
   const setTab = (t: Tab) =>
     setSp(
       (prev) => {
         const p = new URLSearchParams(prev);
-        if (t === "calendario") p.delete("v");
+        if (t === defaultTab) p.delete("v");
         else p.set("v", t);
         return p;
       },
@@ -277,25 +288,13 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
           "Horario"
         )}
       </h1>
-      <p className="muted">
-        {loc ? pdfTitle(loc) : null}
-        {loc && (
-          <>
-            {" · "}
-            <a href={loc.pdf.url} target="_blank" rel="noreferrer">
-              PDF original <ExternalLink size={12} aria-hidden />
-            </a>
-          </>
-        )}
-        {loc && loc.alsoIn.length > 0 && <> · Compartido con: {loc.alsoIn.map((g) => g.nombre).join(", ")}</>}
-      </p>
+      <ScheduleMeta loc={loc} refreshHours={status.data?.refreshHours ?? 24} />
 
       {fromYear && (
         <p className="notice notice--info">
           <Info size={14} aria-hidden /> Tu enlace era del curso {fromYear.slice(0, 2)}-{fromYear.slice(2)}; se muestra el horario vigente ({loc.grado.cursoAcademico}) del mismo curso, semestre y grupo.
         </p>
       )}
-      <FreshnessNotice pdf={loc.pdf} refreshHours={status.data?.refreshHours ?? 24} />
 
       {!calOk && calendar.data && (
         <ErrorBox>
@@ -305,14 +304,32 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
       {built.error && <ErrorBox>{built.error}</ErrorBox>}
 
       <div className="schedule">
-        <aside className="schedule__side panel">
-          <h2>Asignaturas</h2>
-          <p className="muted picker__intro">Marca las que cursas y elige tus grupos. Cuatrimestre {data.cuatrimestre}.</p>
-          <SubjectPicker subjects={subjects} sections={data.sections} selection={selection} onChange={setSelection} onExcel={handleExcel} excelBusy={excelBusy} />
-          {excelError && <ErrorBox>{excelError}</ErrorBox>}
+        <aside className={`schedule__side panel ${pickerOpen ? "" : "schedule__side--collapsed"}`}>
+          <button type="button" className="picker-toggle" onClick={() => setPickerOpen((o) => !o)} aria-expanded={pickerOpen}>
+            <h2>Asignaturas</h2>
+            <span className="muted picker-toggle__sub">Cuatrimestre {data.cuatrimestre}</span>
+            {selectedAcrs.length > 0 && <span className="badge badge--accent">{selectedAcrs.length} marcada{selectedAcrs.length === 1 ? "" : "s"}</span>}
+            <ChevronDown size={18} aria-hidden className={`picker-toggle__chevron ${pickerOpen ? "open" : ""}`} />
+          </button>
+          <div className="picker-body">
+            <SubjectPicker subjects={subjects} sections={data.sections} selection={selection} onChange={setSelection} onExcel={handleExcel} excelBusy={excelBusy} />
+            {excelError && <ErrorBox>{excelError}</ErrorBox>}
+            {selectedAcrs.length > 0 && (
+              <button
+                type="button"
+                className="picker-done"
+                onClick={() => {
+                  setPickerOpen(false);
+                  document.getElementById("schedule-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                Ver horario ({selectedAcrs.length})
+              </button>
+            )}
+          </div>
         </aside>
 
-        <section className="schedule__main">
+        <section className="schedule__main" id="schedule-results">
           <div className="toolbar">
             <ExportPanel classes={built.classes} holidays={built.holidays} baseName={baseName} source={id} nameOf={nameOf} disabledReason={disabledReason} />
           </div>
@@ -326,9 +343,11 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
               ))}
             </div>
 
-            {!calOk ? null : tab === "calendario" ? (
+            {!calOk ? null : tab === "agenda" ? (
+              selectedAcrs.length === 0 ? <p className="muted">Marca alguna asignatura para ver su agenda.</p> : <AgendaView events={monthEvents} />
+            ) : tab === "calendario" ? (
               selectedAcrs.length === 0 ? (
-                <p className="muted">Marca alguna asignatura de la izquierda para ver su calendario.</p>
+                <p className="muted">Marca alguna asignatura para ver su calendario.</p>
               ) : (
                 <CalendarMonthView events={monthEvents} colorBy="groupType" />
               )
@@ -363,6 +382,11 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
               </div>
             )}
           </div>
+
+          <p className="warning" role="note">
+            <TriangleAlert size={15} aria-hidden />
+            <span>{REPROGRAM_NOTE}</span>
+          </p>
         </section>
       </div>
     </div>

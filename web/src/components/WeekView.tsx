@@ -100,6 +100,7 @@ export function WeekView({ classes, holidays }: { classes: CalEvent[]; holidays:
         Semana {weekNo} del curso: {DATE_FMT.format(week.monday)} – {DATE_FMT.format(sunday)}
       </p>
 
+      <div className="week__scroll">
       <div className="week__grid" style={{ "--rows": hours.length, "--row-px": `${ROW_PX}px` } as CSSProperties}>
         <div className="week__corner" />
         {DAY_NAMES.map((name, d) => {
@@ -147,6 +148,7 @@ export function WeekView({ classes, holidays }: { classes: CalEvent[]; holidays:
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

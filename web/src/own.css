@@ -355,10 +355,6 @@ button {
     max-height: none;
   }
 }
-.picker__intro {
-  margin: 0 0 0.6rem;
-  font-size: 0.85rem;
-}
 .picker__tools {
   display: flex;
   gap: 0.5rem;
@@ -636,29 +632,6 @@ button {
 }
 
 /* --- Aviso de última actualización del horario --- */
-.freshness {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin: 0.75rem 0;
-  padding: 0.6rem 0.85rem;
-  font-size: 0.85rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  background: var(--accent-bg);
-  border-radius: var(--radius-sm);
-}
-.freshness svg {
-  flex-shrink: 0;
-  margin-top: 0.15rem;
-  color: var(--accent);
-}
-.freshness--stale {
-  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
-  background: var(--warn-bg);
-}
-.freshness--stale svg {
-  color: var(--warn);
-}
 .notice--info {
   margin: 0.5rem 0;
 }
@@ -682,35 +655,6 @@ button {
 }
 
 /* --- Aviso único de actualización + reprogramaciones --- */
-.notice-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 1.25rem;
-  margin: 0.6rem 0;
-  padding: 0.45rem 0.8rem;
-  font-size: 0.82rem;
-  border: 1px solid var(--border);
-  background: var(--panel);
-  border-radius: var(--radius-sm);
-}
-.notice-bar__item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-.notice-bar__item svg {
-  flex-shrink: 0;
-  color: var(--accent);
-}
-.notice-bar__warn,
-.notice-bar__warn svg {
-  color: var(--warn);
-}
-.notice-bar--stale {
-  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
-  background: var(--warn-bg);
-}
 
 /* --- Barra de exportación --- */
 .toolbar {
@@ -1014,4 +958,233 @@ button {
 
 .theme-toggle {
   margin-left: auto;
+}
+
+/* =====================================================================
+   Panel de asignaturas plegable, agenda y ajustes para pantallas estrechas
+   ===================================================================== */
+.picker-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 0.4rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: default;
+  pointer-events: none; /* en pantallas anchas el panel está siempre abierto */
+}
+.picker-toggle h2 {
+  margin: 0;
+}
+.picker-toggle__chevron {
+  display: none;
+  margin-left: auto;
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+.picker-toggle__chevron.open {
+  transform: rotate(180deg);
+}
+.picker-done {
+  display: none;
+}
+
+.agenda__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.agenda__day {
+  margin-bottom: 0.9rem;
+}
+.agenda__date {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.agenda__item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+  margin-bottom: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  background: color-mix(in srgb, hsl(var(--ev-hue, 160) 60% 42%) 14%, var(--panel));
+  border-left: 4px solid hsl(var(--ev-hue, 160) 60% 42%);
+  border-radius: 8px;
+}
+.agenda__item--holiday {
+  background: var(--warn-bg);
+  border-left-color: var(--warn);
+}
+.agenda__time {
+  display: flex;
+  flex-direction: column;
+  min-width: 3.1rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.agenda__time small {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.agenda__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.agenda__title {
+  font-weight: 600;
+  line-height: 1.25;
+}
+.agenda__meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.week__scroll {
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  .picker-toggle {
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  .picker-toggle__chevron {
+    display: block;
+  }
+  .schedule__side--collapsed .picker-body {
+    display: none;
+  }
+  .picker-done {
+    display: flex;
+    justify-content: center;
+    position: sticky;
+    bottom: 0.5rem;
+    width: 100%;
+    margin-top: 0.75rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  }
+}
+
+@media (max-width: 700px) {
+  .hide-narrow {
+    display: none;
+  }
+  h1 {
+    font-size: 1.4rem;
+  }
+  .content {
+    padding: 0.9rem 0.75rem 1.5rem;
+  }
+  .topbar {
+    padding: 0.55rem 0.75rem;
+  }
+
+
+  /* Pestañas con desplazamiento horizontal en vez de apilarse */
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .tabs button {
+    white-space: nowrap;
+  }
+
+  .export-bar__count {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  /* Zonas táctiles más cómodas */
+  .subject__head input {
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+  .chip {
+    padding: 0.4rem 0.8rem;
+  }
+  .subject__chevron {
+    padding: 0.6rem;
+  }
+  .act-row__label {
+    padding: 0.4rem 0.5rem;
+  }
+
+  /* Vista semanal: la rejilla se desplaza en horizontal en vez de aplastarse */
+  .week__grid {
+    min-width: 560px;
+  }
+
+  /* Calendario mensual compacto */
+  .calendar-day {
+    min-height: 58px;
+    padding: 0.2rem;
+  }
+  .calendar-event {
+    font-size: 0.6rem;
+    padding: 0.05rem 0.2rem;
+  }
+  .calendar-event__time {
+    display: none;
+  }
+  .calendar-month__header strong {
+    font-size: 0.9rem;
+  }
+}
+
+/* --- Línea de metadatos bajo el título --- */
+.schedule-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin: 0.15rem 0 0.9rem;
+  font-size: 0.85rem;
+}
+.schedule-meta svg {
+  vertical-align: -2px;
+}
+.schedule-meta__warn {
+  color: var(--warn);
+}
+.picker-toggle__sub {
+  font-size: 0.8rem;
+}
+.subject__summary {
+  color: var(--accent);
+  font-size: 0.75rem;
+}
+.schedule__main .warning {
+  margin: 1rem 0 0;
+}
+
+/* Las columnas de la página de horario no deben crecer por el contenido (vista semanal, huecos libres…):
+   `1fr` equivale a minmax(auto, 1fr); con minmax(0, 1fr) el contenido ancho hace scroll dentro de su panel. */
+.schedule > * {
+  min-width: 0;
+}
+.schedule__main > .panel {
+  overflow-x: auto;
+}
+@media (max-width: 900px) {
+  .schedule {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
