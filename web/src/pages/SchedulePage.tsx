@@ -1,6 +1,6 @@
-import { ChevronDown, Clock, ExternalLink, Info, TriangleAlert } from "lucide-react";
+import { ChevronDown, Clock, ExternalLink, Info, ListChecks, ListX, TriangleAlert, UserRoundPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AgendaView } from "../components/AgendaView";
 import { CalendarMonthView } from "../components/CalendarMonthView";
 import { EnglishMark } from "../components/EnglishMark";
@@ -17,6 +17,7 @@ import { downloadBlob } from "../lib/download";
 import { buildEvents, isCourseCalendar, type CalEvent } from "../lib/events";
 import { isPracticeGroup } from "../lib/practiceBalance";
 import { findScheduleGaps } from "../lib/scheduleGaps";
+import { loadStoredMine, mergeEntries, mineSearch, pdfKey, saveStoredMine } from "../lib/myschedule";
 import { normalizeAcronym, parseSelection, serializeSelection, sortGroups, type Selection } from "../lib/selection";
 
 type Tab = "agenda" | "calendario" | "semana" | "resumen" | "huecos" | "practicas";
@@ -107,6 +108,7 @@ function ScheduleMeta({ loc, refreshHours }: { loc: PdfLocation; refreshHours: n
 function ScheduleView({ loc }: { loc: PdfLocation }) {
   const id = loc.pdf.id;
   const location = useLocation();
+  const navigate = useNavigate();
   const fromYear = (location.state as { fromYear?: string } | null)?.fromYear;
   const [sp, setSp] = useSearchParams();
   const sched = useAsync(() => getSchedule(id), [id]);
@@ -253,6 +255,14 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
     }
   }
 
+  function addToMine() {
+    const key = pdfKey(loc);
+    const add = Object.entries(selection).map(([subject, groups]) => ({ key, subject, groups: groups.length === (meta.get(subject)?.groups.length ?? -1) ? [] : groups }));
+    const next = mergeEntries(loadStoredMine(), add);
+    saveStoredMine(next);
+    navigate({ pathname: "/mi-horario", search: mineSearch(next) });
+  }
+
   // ---- Render ----
   if (sched.error) {
     return (
@@ -305,12 +315,33 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
 
       <div className="schedule">
         <aside className={`schedule__side panel ${pickerOpen ? "" : "schedule__side--collapsed"}`}>
-          <button type="button" className="picker-toggle" onClick={() => setPickerOpen((o) => !o)} aria-expanded={pickerOpen}>
-            <h2>Asignaturas</h2>
-            <span className="muted picker-toggle__sub">Cuatrimestre {data.cuatrimestre}</span>
-            {selectedAcrs.length > 0 && <span className="badge badge--accent">{selectedAcrs.length} marcada{selectedAcrs.length === 1 ? "" : "s"}</span>}
-            <ChevronDown size={18} aria-hidden className={`picker-toggle__chevron ${pickerOpen ? "open" : ""}`} />
-          </button>
+          <div className="picker-head">
+            <button type="button" className="picker-toggle" onClick={() => setPickerOpen((o) => !o)} aria-expanded={pickerOpen}>
+              <h2>Asignaturas</h2>
+              <ChevronDown size={18} aria-hidden className={`picker-toggle__chevron ${pickerOpen ? "open" : ""}`} />
+            </button>
+            <div className="picker__buttons">
+              <button
+                type="button"
+                className="secondary"
+                title="Seleccionar todas las asignaturas"
+                aria-label="Seleccionar todas las asignaturas"
+                onClick={() => setSelection(Object.fromEntries(subjects.map((s) => [s.acronym, sortGroups(s.groups)])))}
+              >
+                <ListChecks size={16} aria-hidden />
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                title="Deseleccionar todas"
+                aria-label="Deseleccionar todas"
+                onClick={() => setSelection({})}
+                disabled={selectedAcrs.length === 0}
+              >
+                <ListX size={16} aria-hidden />
+              </button>
+            </div>
+          </div>
           <div className="picker-body">
             <SubjectPicker subjects={subjects} sections={data.sections} selection={selection} onChange={setSelection} onExcel={handleExcel} excelBusy={excelBusy} />
             {excelError && <ErrorBox>{excelError}</ErrorBox>}
@@ -332,6 +363,9 @@ function ScheduleView({ loc }: { loc: PdfLocation }) {
         <section className="schedule__main" id="schedule-results">
           <div className="toolbar">
             <ExportPanel classes={built.classes} holidays={built.holidays} baseName={baseName} source={id} nameOf={nameOf} disabledReason={disabledReason} />
+            <button type="button" className="secondary" disabled={selectedAcrs.length === 0} onClick={addToMine} title="Envía las asignaturas y grupos marcados a tu página «Mi horario»">
+              <UserRoundPlus size={16} aria-hidden /> Añadir a Mi horario
+            </button>
           </div>
 
           <div className="panel">

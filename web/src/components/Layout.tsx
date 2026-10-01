@@ -1,4 +1,4 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, UserRound } from "lucide-react";
 import { Link, Outlet } from "react-router-dom";
 import { getStatus, useAsync } from "../lib/api";
 import { ThemeToggle } from "./ThemeToggle";
@@ -22,6 +22,9 @@ export function Layout() {
           <span>EPIcal</span>
         </Link>
         <span className="topbar__tag">Horarios de la EPI Gijón</span>
+        <Link to="/mi-horario" className="topbar__link">
+          <UserRound size={16} aria-hidden /> Mi horario
+        </Link>
         <ThemeToggle />
       </header>
       <main className="content">

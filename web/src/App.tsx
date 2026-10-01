@@ -2,6 +2,7 @@ import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { GradoPage } from "./pages/GradoPage";
 import { HomePage } from "./pages/HomePage";
+import { MySchedulePage } from "./pages/MySchedulePage";
 import { SchedulePage } from "./pages/SchedulePage";
 
 function NotFound() {
@@ -26,6 +27,7 @@ export function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<HomePage />} />
+        <Route path="mi-horario" element={<MySchedulePage />} />
         <Route path="grado/:slug" element={<GradoPage />} />
         <Route path="grado/:slug/:year/:curso/:sem/:grupo" element={<SchedulePage />} />
         <Route path="grado/:slug/*" element={<PartialPath />} />

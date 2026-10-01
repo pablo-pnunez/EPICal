@@ -629,6 +629,10 @@ button {
 
 /* --- Barra de exportación --- */
 .toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
   margin-bottom: 1rem;
 }
 .export-bar {
@@ -926,13 +930,19 @@ button {
 /* =====================================================================
    Panel de asignaturas plegable, agenda y ajustes para pantallas estrechas
    ===================================================================== */
+.picker-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+}
 .picker-toggle {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  width: 100%;
+  flex: 1;
   padding: 0;
-  margin: 0 0 1rem;
+  margin: 0;
   border: none;
   background: transparent;
   color: var(--text);
@@ -1150,4 +1160,103 @@ button {
   .schedule {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* --- Mi horario --- */
+.my-hits {
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+.my-hit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+.my-hit__text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.88rem;
+}
+.my-hit__text small {
+  font-size: 0.72rem;
+}
+.my-subject__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+}
+.my-subject__body {
+  padding-left: 0.6rem;
+}
+.my-subject__warn {
+  padding: 0 0.6rem 0.5rem;
+  font-size: 0.8rem;
+}
+.topbar__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.topbar__link + .theme-toggle {
+  margin-left: 0;
+}
+.chip__weeks {
+  margin-left: 0.3rem;
+  font-size: 0.65rem;
+  opacity: 0.75;
+}
+.weeks__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+  padding: 0.1rem 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.74rem;
+  text-decoration: underline dotted;
+  cursor: pointer;
+}
+.weeks__toggle:hover,
+.weeks__toggle--on {
+  color: var(--accent);
+}
+.weeks__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.weeks__panel select {
+  width: auto;
+  align-self: flex-start;
+}
+.weeks__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.7rem;
+}
+.weeks__shortcuts button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.weeks__shortcuts button:hover {
+  text-decoration: underline;
 }

@@ -37,10 +37,7 @@ export function PracticeGroupBalance({ eventsByGroup }: { eventsByGroup: Record<
         </tbody>
       </table>
 
-      <p className="muted" style={{ marginTop: "1rem", marginBottom: "0.3rem" }}>
-        Clases acumuladas hasta el final de cada semana (semana ISO, hora de Madrid; entre paréntesis, las dadas esa semana en concreto) — en rojo, las semanas en las que un grupo va por detrás del que más lleva. Útil para elegir una semana "en verde" (todos igualados) para poner un examen.
-      </p>
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ overflowX: "auto", marginTop: "1rem" }}>
         <table>
           <thead>
             <tr>

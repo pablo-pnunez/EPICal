@@ -1,5 +1,5 @@
 import { ChevronDown, FileSpreadsheet, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ACTIVITY_LABEL, ACTIVITY_ORDER, activityOf, isEnglishGroup, type Activity } from "../lib/events";
 import { fold } from "../lib/catalog";
 import { sortGroups, type Selection } from "../lib/selection";
@@ -28,7 +28,7 @@ interface Props {
 /** Con más asignaturas que esto se muestran el buscador y «Todas/Ninguna»; con menos sobran. */
 const SEARCH_THRESHOLD = 10;
 
-function groupsByActivity(groups: string[]): Array<[Activity, string[]]> {
+export function groupsByActivity(groups: string[]): Array<[Activity, string[]]> {
   const map = new Map<Activity, string[]>();
   for (const g of sortGroups(groups)) {
     const a = activityOf(g);
@@ -50,10 +50,8 @@ export function SubjectPicker({ subjects, sections, selection, onChange, onExcel
       return next;
     });
   const f = fold(filter.trim());
-  const meta = useMemo(() => new Map(subjects.map((s) => [s.acronym, s])), [subjects]);
 
   const visible = subjects.filter((s) => !f || fold(s.name).includes(f) || fold(s.acronym).includes(f));
-  const selectedSubjects = Object.keys(selection).filter((a) => meta.has(a));
   const showTools = subjects.length > SEARCH_THRESHOLD;
   // Las insignias de curso sólo informan si hay varios cursos distintos; «EN» sólo si es la excepción.
   const cursos = new Set(subjects.map((s) => s.curso));
@@ -92,12 +90,6 @@ export function SubjectPicker({ subjects, sections, selection, onChange, onExcel
     setGroups(s.acronym, allOn ? cur.filter((g) => !groups.includes(g)) : [...new Set([...cur, ...groups])]);
   }
 
-  function selectAll() {
-    const next: Selection = {};
-    for (const s of subjects) next[s.acronym] = sortGroups(s.groups);
-    onChange(next);
-  }
-
   const multiSection = sections.length > 1;
 
   return (
@@ -107,14 +99,6 @@ export function SubjectPicker({ subjects, sections, selection, onChange, onExcel
           <div className="search-input">
             <Search size={16} aria-hidden className="search-input__icon" />
             <input type="text" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrar asignaturas…" aria-label="Filtrar asignaturas" />
-          </div>
-          <div className="picker__buttons">
-            <button type="button" className="secondary" onClick={selectAll}>
-              Todas
-            </button>
-            <button type="button" className="secondary" onClick={() => onChange({})} disabled={selectedSubjects.length === 0}>
-              Ninguna
-            </button>
           </div>
         </div>
       )}
