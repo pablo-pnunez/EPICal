@@ -61,21 +61,6 @@ export function SubjectPicker({ subjects, sections, selection, onChange, onExcel
   const englishCount = subjects.filter((s) => s.english).length;
   const showEnglish = englishCount > 0 && englishCount < subjects.length;
 
-  /** Estado global de cada tipo de actividad sobre las asignaturas seleccionadas (sólo modo profesor). */
-  const activityState = useMemo(() => {
-    const res = new Map<Activity, { total: number; on: number }>();
-    for (const a of selectedSubjects) {
-      for (const g of meta.get(a)!.groups) {
-        const act = activityOf(g);
-        const cur = res.get(act) ?? { total: 0, on: 0 };
-        cur.total++;
-        if (selection[a]!.includes(g)) cur.on++;
-        res.set(act, cur);
-      }
-    }
-    return res;
-  }, [selectedSubjects, meta, selection]);
-
   function toggleSubject(s: SubjectMeta) {
     const next = { ...selection };
     if (next[s.acronym]) {
@@ -107,21 +92,6 @@ export function SubjectPicker({ subjects, sections, selection, onChange, onExcel
     setGroups(s.acronym, allOn ? cur.filter((g) => !groups.includes(g)) : [...new Set([...cur, ...groups])]);
   }
 
-  /** Activa/desactiva un tipo (p. ej. PL) en TODAS las asignaturas seleccionadas a la vez. */
-  function toggleActivityGlobal(act: Activity) {
-    const st = activityState.get(act);
-    if (!st) return;
-    const turnOn = st.on < st.total;
-    const next: Selection = {};
-    for (const a of selectedSubjects) {
-      const ofAct = meta.get(a)!.groups.filter((g) => activityOf(g) === act);
-      let cur = selection[a]!;
-      cur = turnOn ? [...new Set([...cur, ...ofAct])] : cur.filter((g) => !ofAct.includes(g));
-      if (cur.length > 0) next[a] = sortGroups(cur);
-    }
-    onChange(next);
-  }
-
   function selectAll() {
     const next: Selection = {};
     for (const s of subjects) next[s.acronym] = sortGroups(s.groups);
@@ -146,21 +116,6 @@ export function SubjectPicker({ subjects, sections, selection, onChange, onExcel
               Ninguna
             </button>
           </div>
-        </div>
-      )}
-
-      {selectedSubjects.length > 0 && activityState.size > 1 && (
-        <div className="picker__activities" role="group" aria-label="Mostrar u ocultar un tipo de actividad en todas las asignaturas seleccionadas">
-          <span className="muted">Mostrar:</span>
-          {ACTIVITY_ORDER.filter((a) => activityState.has(a)).map((a) => {
-            const st = activityState.get(a)!;
-            const state = st.on === st.total ? "on" : st.on === 0 ? "off" : "some";
-            return (
-              <button key={a} type="button" className={`toggle toggle--${state}`} aria-pressed={state === "on"} onClick={() => toggleActivityGlobal(a)} title={`${ACTIVITY_LABEL[a]}: ${st.on} de ${st.total} grupos marcados`}>
-                {a}
-              </button>
-            );
-          })}
         </div>
       )}
 

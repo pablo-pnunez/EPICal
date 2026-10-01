@@ -274,6 +274,7 @@ button {
 .crumbs {
   font-size: 0.82rem;
   color: var(--muted);
+  margin-bottom: 1.5rem;
 }
 .semestre {
   display: flex;
@@ -367,36 +368,6 @@ button {
 .picker__buttons {
   display: flex;
   gap: 0.3rem;
-}
-.picker__activities {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 0.7rem;
-  font-size: 0.82rem;
-}
-.toggle {
-  padding: 0.22rem 0.6rem;
-  font-size: 0.78rem;
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--muted);
-  border: 1px solid var(--border);
-}
-.toggle--on {
-  background: var(--accent-bg);
-  color: var(--accent);
-  border-color: var(--accent);
-  font-weight: 600;
-}
-.toggle--some {
-  border-style: dashed;
-  color: var(--text);
-}
-.toggle__count {
-  font-size: 0.68rem;
-  opacity: 0.8;
 }
 .picker__section-title {
   margin: 0.9rem 0 0.3rem;
@@ -746,6 +717,7 @@ button {
 .subject__top {
   display: flex;
   align-items: center;
+  min-height: 3.75rem; /* mismo alto para todas, aunque el nombre ocupe una o dos líneas */
 }
 .subject__top .subject__head {
   flex: 1;
@@ -801,65 +773,54 @@ button {
     grid-template-columns: 1fr;
   }
 }
-.matrix {
+.curso-grid {
   display: grid;
-  grid-template-columns: 8.5rem repeat(var(--cols, 2), minmax(0, 1fr));
-  gap: 1px;
-  background: var(--border);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 }
-.matrix__corner,
-.matrix__colhead {
-  background: var(--bg);
-  padding: 0.55rem 0.9rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-}
-.matrix__rowhead,
-.matrix__cell {
-  background: var(--panel);
-  padding: 1rem 0.9rem;
-}
-.matrix__rowhead {
+.curso-card {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.15rem;
+  gap: 0.9rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
-.matrix__num {
+.curso-card__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.curso-card__num {
   font-family: var(--font-serif);
   font-size: 1.9rem;
   font-weight: 700;
   line-height: 1;
   color: var(--accent);
 }
-.matrix__name {
-  font-size: 0.8rem;
+.curso-card__name {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 400;
   color: var(--muted);
 }
-.matrix__cell {
+.curso-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+}
+.curso-card__label {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.5rem;
-}
-.matrix__caption {
-  display: none;
-  font-size: 0.72rem;
+  min-width: 6rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
 }
-.matrix__turno {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-size: 0.75rem;
+.curso-card__turno {
+  font-size: 0.72rem;
+  font-weight: 400;
   color: var(--muted);
 }
 .tile-row {
@@ -891,21 +852,8 @@ button {
   font-weight: 500;
 }
 @media (max-width: 640px) {
-  .matrix {
+  .curso-grid {
     grid-template-columns: 1fr;
-  }
-  .matrix__corner,
-  .matrix__colhead {
-    display: none;
-  }
-  .matrix__rowhead {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 0.6rem;
-    background: var(--bg);
-  }
-  .matrix__caption {
-    display: block;
   }
 }
 .grado-aside {
@@ -969,7 +917,7 @@ button {
   gap: 0.6rem;
   width: 100%;
   padding: 0;
-  margin: 0 0 0.4rem;
+  margin: 0 0 1rem;
   border: none;
   background: transparent;
   color: var(--text);

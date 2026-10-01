@@ -1,5 +1,5 @@
 import { ExternalLink, FileText } from "lucide-react";
-import { Fragment, useEffect, type CSSProperties } from "react";
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { EnglishMark } from "../components/EnglishMark";
 import { ErrorBox, Loading } from "../components/Status";
@@ -7,16 +7,11 @@ import { getCatalog, useAsync } from "../lib/api";
 import { pdfHref, shortCurso } from "../lib/catalog";
 import type { CatalogPdf, CatalogSemestre } from "../types";
 
-interface Column {
-  key: string;
-  label: string;
-}
-
-/** "Semestre 1 (Mañanas*)" -> columna «Semestre 1» y turno «Mañanas*». Los textos que no encajan forman su propia columna. */
-function parseSemestre(texto: string): { key: string; label: string; turno: string | null } {
+/** "Semestre 1 (Mañanas*)" -> etiqueta «Semestre 1» y turno «Mañanas*». Los textos que no encajan se muestran tal cual. */
+function parseSemestre(texto: string): { label: string; turno: string | null } {
   const m = /semestre\s*(\d+)/i.exec(texto);
   const turno = /\(([^)]*)\)/.exec(texto)?.[1]?.trim() || null;
-  return m ? { key: m[1]!, label: `Semestre ${m[1]}`, turno } : { key: texto, label: texto, turno: null };
+  return m ? { label: `Semestre ${m[1]}`, turno } : { label: texto, turno: null };
 }
 
 export function GradoPage() {
@@ -43,16 +38,6 @@ export function GradoPage() {
     );
   }
 
-  // Columnas = semestres que existen en cualquier curso (normalmente 1 y 2), en orden numérico.
-  const columns: Column[] = [];
-  for (const c of grado.cursos) {
-    for (const s of c.semestres) {
-      const { key, label } = parseSemestre(s.texto);
-      if (!columns.some((col) => col.key === key)) columns.push({ key, label });
-    }
-  }
-  columns.sort((a, b) => Number(a.key) - Number(b.key) || a.label.localeCompare(b.label, "es"));
-
   const total = grado.cursos.reduce((n, c) => n + c.semestres.reduce((m, s) => m + s.grupos.length, 0), 0);
 
   return (
@@ -69,30 +54,17 @@ export function GradoPage() {
       </div>
 
       <div className="grado-layout">
-        <section className="matrix" style={{ "--cols": columns.length } as CSSProperties} aria-label="Horarios por curso y semestre">
-          <div className="matrix__corner" aria-hidden />
-          {columns.map((col) => (
-            <div key={col.key} className="matrix__colhead">
-              {col.label}
-            </div>
-          ))}
-
+        <section className="curso-grid" aria-label="Horarios por curso y semestre">
           {grado.cursos.map((curso) => (
-            <Fragment key={curso.curso}>
-              <div className="matrix__rowhead">
-                <span className="matrix__num">{shortCurso(curso.curso)}</span>
-                <span className="matrix__name">{curso.curso}</span>
-              </div>
-              {columns.map((col) => {
-                const sems = curso.semestres.filter((s) => parseSemestre(s.texto).key === col.key);
-                return (
-                  <div key={col.key} className="matrix__cell">
-                    <span className="matrix__caption">{col.label}</span>
-                    {sems.length === 0 ? <span className="muted">—</span> : sems.map((s) => <SemestreCell key={s.texto} grado={grado} semestre={s} />)}
-                  </div>
-                );
-              })}
-            </Fragment>
+            <article key={curso.curso} className="curso-card">
+              <header className="curso-card__head">
+                <span className="curso-card__num">{shortCurso(curso.curso)}</span>
+                <h2 className="curso-card__name">{curso.curso}</h2>
+              </header>
+              {curso.semestres.map((s) => (
+                <SemestreRow key={s.texto} grado={grado} semestre={s} />
+              ))}
+            </article>
           ))}
         </section>
 
@@ -128,11 +100,14 @@ export function GradoPage() {
   );
 }
 
-function SemestreCell({ grado, semestre }: { grado: Parameters<typeof pdfHref>[0]; semestre: CatalogSemestre }) {
-  const turno = parseSemestre(semestre.texto).turno;
+function SemestreRow({ grado, semestre }: { grado: Parameters<typeof pdfHref>[0]; semestre: CatalogSemestre }) {
+  const { label, turno } = parseSemestre(semestre.texto);
   return (
-    <div className="matrix__group">
-      {turno && <span className="matrix__turno">{turno}</span>}
+    <div className="curso-card__row">
+      <div className="curso-card__label">
+        <span>{label}</span>
+        {turno && <span className="curso-card__turno">{turno}</span>}
+      </div>
       <div className="tile-row">
         {semestre.grupos.map((p, i) => (
           <GroupTile key={`${p.id}-${i}`} grado={grado} pdf={p} />
