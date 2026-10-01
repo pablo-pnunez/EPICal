@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instalación de EPIcal en un Debian/Ubuntu (LXC o VM de Proxmox). Ejecutar como root desde la
+# Instalación de EPIcal en un Debian/Ubuntu (VM, contenedor LXC o equipo físico). Ejecutar como root desde la
 # carpeta del proyecto ya copiada al servidor:   sudo bash deploy/install.sh
 #
 # Requisitos previos: Node.js >= 20 (https://nodejs.org o NodeSource) y python3 con venv.

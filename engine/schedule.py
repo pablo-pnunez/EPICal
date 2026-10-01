@@ -1,7 +1,7 @@
 """
 Cálculo de eventos con fecha real y rejilla semanal para el EXCEL de una asignatura.
 
-Portado de la app "DocenciAPP" (`src/linera2cal/linerapp.py`).
+Algoritmo heredado de una app anterior de generación de calendarios, ya validado con PDF reales.
 Aquí ya NO está la extracción del PDF (ver `timetable.py`) ni la generación de .ics (se hace en el
 navegador, `web/src/lib/events.ts`): sólo lo que necesita `excel.py`.
 """
@@ -78,7 +78,7 @@ def _to_madrid_wallclock(subject_events):
     de dejar el tzinfo que trae `subject_to_events` (`tz.tzlocal()`, el del
     sistema que ejecuta este proceso). Así el horario generado (tanto el
     .ics como el .xlsx) es correcto sin importar en qué huso horario esté
-    configurado el servidor (p.ej. un Proxmox en UTC): las clases son
+    configurado el servidor (p.ej. un servidor en UTC): las clases son
     siempre a la hora de pared de Madrid, no a la del reloj del servidor.
     Usado por `to_ical` y `print_subject` — antes cada uno hacía su propia
     conversión (y `print_subject`, en la app original, ni siquiera la

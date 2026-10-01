@@ -1,6 +1,6 @@
 """
 Oráculo para el test de equivalencia de web/src/lib/events.ts: calcula con el motor Python original
-(engine/schedule.py#subject_to_events, ya validado en producción por DocenciAPP) los eventos de
+(engine/schedule.py#subject_to_events, ya validado en producción) los eventos de
 varias asignaturas reales y los vuelca a JSON. Lo compara después tests/run-events-test.mjs.
 
 Uso: python tests/py_events.py <DATA_DIR> <salida.json>

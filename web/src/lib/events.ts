@@ -1,7 +1,7 @@
 /**
  * Expande la rejilla semanal de un PDF (día de la semana + nº de semana de curso) a eventos con
- * fecha real. Es el equivalente en TypeScript de `subject_to_events` del motor Python original
- * (DocenciAPP): se hace en el navegador para que activar/desactivar PL, PA... sea instantáneo y
+ * fecha real. Es el equivalente en TypeScript de `subject_to_events` del motor Python original:
+ * se hace en el navegador para que activar/desactivar PL, PA... sea instantáneo y
  * no cargue al servidor público.
  *
  * Diferencia deliberada con el original: el nº de semana de curso se calcula por distancia en

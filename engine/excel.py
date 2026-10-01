@@ -2,9 +2,8 @@
 Genera el Excel formateado de un calendario ya expandido (`schedule.py#subject_to_events`)
 — colores por tipo de grupo (Teoría/Prácticas/Trabajo en grupo, con variante
 inglés), hoja "Horario" (rejilla semana-a-semana + resumen de horas por
-evento) y hoja "Eventos" (lista plana). Portado de
-DOCENCIAPP/src/linera2cal/excel_functions.py, quitando `append_plan`/
-`add_plan` (opción de fichero de planificación de temas/profesor —
+evento) y hoja "Eventos" (lista plana). Heredado de una app anterior,
+quitando `append_plan`/`add_plan` (opción de fichero de planificación de temas/profesor —
 desactivada en la app original, nunca se ejercitaba en producción, ver
 schedule.py).
 """

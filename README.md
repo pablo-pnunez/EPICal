@@ -44,9 +44,9 @@ El grupo sale de la etiqueta de la web (`B_Eng` → `b-eng`; los asteriscos se i
 
 Los datos públicos son ficheros JSON estáticos precomprimidos (≈3 KB cada horario), escritos de forma atómica: la web no se queda a medias mientras se actualiza.
 
-## Despliegue en Proxmox (sin Docker, systemd)
+## Despliegue (sin Docker, systemd)
 
-En un contenedor LXC o VM con Debian/Ubuntu:
+En cualquier máquina con Debian/Ubuntu (VM, contenedor LXC, equipo físico…):
 
 ```bash
 apt install -y python3 python3-venv          # y Node.js >= 20
