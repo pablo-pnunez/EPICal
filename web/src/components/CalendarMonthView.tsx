@@ -42,7 +42,7 @@ function isAllDay(ev: IcsEvent): boolean {
 
 /**
  * `SUMMARY` siempre viene como `"Asignatura [Grupo]"` (ver
- * `calendario-engine/engine/schedule.py#to_ical`), tanto en el calendario de
+ * `lib/events.ts#buildEvents`), tanto en el calendario de
  * una sola asignatura como en el combinado "TODAS" (ahí `Asignatura` es la
  * real de cada evento, no un nombre fijo) — salvo los festivos, que no
  * llevan corchetes (`event.name = HOLIDAY`, sin sufijo de grupo).
@@ -68,7 +68,7 @@ function colorKeyOf(ev: IcsEvent, colorBy: CalendarColorBy): string | null {
   return group ? activityOf(group) : null;
 }
 
-/** Vista de calendario mensual (rejilla semana-a-semana, no tabla/lista) — como pedir que se abra el .ics en un calendario de verdad. Se posiciona sola en el mes del primer evento (la clase puede empezar dentro de varios meses, no tiene sentido abrir en el mes actual del navegador). `colorBy` decide si cada evento se colorea por tipo de grupo o por asignatura (ver `CalendarioPage`: por defecto "groupType", salvo en el calendario combinado "TODAS"). */
+/** Vista de calendario mensual (rejilla semana-a-semana, no tabla/lista) — como pedir que se abra el .ics en un calendario de verdad. Se posiciona sola en el mes del primer evento (la clase puede empezar dentro de varios meses, no tiene sentido abrir en el mes actual del navegador). `colorBy` decide si cada evento se colorea por tipo de grupo o por asignatura (por defecto "groupType"). */
 export function CalendarMonthView({ events, colorBy = "groupType" }: { events: IcsEvent[]; colorBy?: CalendarColorBy }) {
   const initialCursor = useMemo(() => {
     if (events.length === 0) {

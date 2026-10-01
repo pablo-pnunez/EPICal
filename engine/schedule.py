@@ -1,7 +1,7 @@
 """
 Cálculo de eventos con fecha real y rejilla semanal para el EXCEL de una asignatura.
 
-Portado de la app "DocenciAPP" vía el proyecto SIES API (`calendario-engine/engine/schedule.py`).
+Portado de la app "DocenciAPP" (`src/linera2cal/linerapp.py`).
 Aquí ya NO está la extracción del PDF (ver `timetable.py`) ni la generación de .ics (se hace en el
 navegador, `web/src/lib/events.ts`): sólo lo que necesita `excel.py`.
 """

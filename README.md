@@ -2,8 +2,6 @@
 
 Web pública de **horarios de la EPI Gijón**. Cada _X_ horas (24 por defecto) revisa la web de la escuela, descarga los PDF de horarios de todos los grados y cursos **solo si han cambiado**, extrae su contenido y lo publica ya procesado, de forma que consultar, personalizar y exportar sea instantáneo para quien lo usa.
 
-Es un programa **independiente** del panel SIES API: no comparte código en ejecución ni toca nada de él (se reutilizó y adaptó su conocimiento del sitio de la EPI y del motor de calendarios).
-
 ## Qué hace
 
 - **Catálogo**: descubre solos los grados y sus PDF (no hay listas hardcodeadas): 11 grados, ~110 PDF distintos.

@@ -1,4 +1,4 @@
-/* EPIcal — tokens y bloques reutilizados del panel SIES API (identidad UniOvi) + estilos propios al final. */
+/* EPIcal — tokens de color (identidad UniOvi), bloques base y estilos propios. */
 :root {
   color-scheme: light;
   --bg: #f6f8f7;

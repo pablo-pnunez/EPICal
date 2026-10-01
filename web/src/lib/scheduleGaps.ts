@@ -1,22 +1,19 @@
 /**
  * Huecos completamente libres en el calendario combinado de TODAS las asignaturas/grupos de un
- * grado y curso (ver CalendarioPage — modo `ALL_SUBJECTS`): fechas y horas CONCRETAS (no un patrón
+ * grado y curso (ver SchedulePage, pestaña «Huecos libres»): fechas y horas CONCRETAS (no un patrón
  * semanal genérico) en las que ninguna asignatura/grupo tiene clase — candidatos para mover una
  * clase sin chocar con NINGÚN alumno, dentro del horario habitual (entre la clase más temprana y la
  * más tardía de toda la rejilla), descontando los festivos del cuatrimestre y SIN contar los días
  * de la semana en los que ese grado/curso nunca tiene clase (p.ej. un grado sin clase los viernes).
  *
- * Necesita DOS calendarios ya generados (ver useFindScheduleGaps): el de clases
- * (`exportHolidays: false`) y el de festivos (`exportHolidays: true`) — el motor no marca los
- * festivos dentro del propio calendario de clases (simplemente no genera ninguna clase ese día,
- * para NINGUNA asignatura), así que sin la lista de festivos aparte no habría forma de distinguir
- * "festivo" de "hueco real": ambos casos parecen un día sin ningún evento.
+ * Necesita DOS listas de eventos (ver SchedulePage): los de clase y los de festivo. Los festivos no
+ * aparecen dentro de los eventos de clase (ese día simplemente no hay ninguna), así que sin la lista de
+ * festivos aparte no habría forma de distinguir "festivo" de "hueco real": ambos casos parecen un día
+ * sin ningún evento.
  *
  * NO se distingue por grupo de prácticas (`PL*`): aunque un alumno sólo esté en UNO de ellos, no
- * hay forma de verificar contra SIES qué alumnos concretos hay en cada "PL2"/"PL3" de cada
- * asignatura (sólo se puede consultar el alumnado de las asignaturas que uno mismo imparte, SIES lo
- * impide para el resto — confirmado en vivo), así que un hueco sólo cuenta si NINGUNA
- * asignatura/grupo tiene clase ahí — válido para TODOS los alumnos sea cual sea su grupo real.
+ * hay forma de saber qué alumnos concretos hay en cada "PL2"/"PL3" de cada asignatura, así que un
+ * hueco sólo cuenta si NINGUNA asignatura/grupo tiene clase ahí — válido para TODOS los alumnos sea cual sea su grupo real.
  */
 
 import type { IcsEvent } from "./ics";
@@ -64,7 +61,7 @@ export interface ScheduleGapsResult {
   slots: GapSlot[];
 }
 
-/** `classEvents`/`holidayEvents`: eventos ya parseados de los .ics que devuelve POST /connectors/calendario/ical con `allSubjects: true` (`exportHolidays: false` y `true` respectivamente). */
+/** `classEvents`/`holidayEvents`: eventos de clase y de festivo ya calculados por `buildEvents` (lib/events.ts) para TODAS las asignaturas y grupos. */
 export function findScheduleGaps(classEvents: IcsEvent[], holidayEvents: IcsEvent[]): ScheduleGapsResult | null {
   if (classEvents.length === 0) return null;
 

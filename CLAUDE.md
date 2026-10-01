@@ -1,6 +1,6 @@
 # EPIcal
 
-Web pública de horarios de la EPI Gijón. Cada `REFRESH_HOURS` (24) revisa epigijon.uniovi.es, descarga los PDF de horarios **solo si cambiaron**, los procesa y sirve JSON ya extraído; el usuario consulta, filtra por asignaturas/grupos y exporta a `.ics` (en el navegador) o Excel (en el servidor). Es **independiente de SIES API** (otro proyecto, `Escritorio/SIES API`): no comparten código en ejecución. Idioma de código, comentarios y UI: **español**. Sin emojis en la UI: iconos outline de `lucide-react`.
+Web pública de horarios de la EPI Gijón. Cada `REFRESH_HOURS` (24) revisa epigijon.uniovi.es, descarga los PDF de horarios **solo si cambiaron**, los procesa y sirve JSON ya extraído; el usuario consulta, filtra por asignaturas/grupos y exporta a `.ics` (en el navegador) o Excel (en el servidor). Idioma de código, comentarios y UI: **español**. Sin emojis en la UI: iconos outline de `lucide-react`.
 
 Lee `README.md` para arquitectura, despliegue y mantenimiento; aquí solo lo que no se deduce del código.
 
@@ -27,7 +27,7 @@ python engine/test_timetable.py [x.pdf]   # y engine/test_academic.py [x.pdf]
 Antes de dar algo por hecho: `npm run typecheck`, `npm run test:events` y, si tocas el parser, probar contra PDF reales (`npm run refresh` los baja a `DATA_DIR`).
 
 ## Entorno de desarrollo (Windows)
-- No hay `python` en PATH. En `.env` (gitignored; plantilla `.env.example`) `PYTHON_BIN` apunta al intérprete del entorno conda `sies-calendario` (`C:/Users/Pablo/miniconda3/envs/sies-calendario/python.exe`). En el servidor Linux es `engine/.venv/bin/python` (ver `engine/requirements.txt`).
+- No hay `python` en PATH. En `.env` (gitignored; plantilla `.env.example`) `PYTHON_BIN` apunta a un intérprete con las dependencias de `engine/requirements.txt` (aquí, un entorno conda). En el servidor Linux es `engine/.venv/bin/python` (ver `engine/requirements.txt`).
 - El servidor de pruebas se arranca con `node server/dist/index.js` en el puerto 8080; **páralo al terminar**.
 - Si usas el Bash de Claude Code: los **heredocs grandes fallan** o colapsan `\\` a `\` (ya rompió un regex). Escribe ficheros con Write/Edit, no con `cat <<EOF`. Las capturas del navegador integrado fallan a menudo: verifica con `javascript_tool`/`get_page_text`.
 

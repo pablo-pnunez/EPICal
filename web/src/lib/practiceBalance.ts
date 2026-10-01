@@ -5,7 +5,7 @@
  * recupere en otra parte del calendario, dejando a ese grupo por detrás de los demás.
  *
  * Trabaja sobre los eventos YA generados por el motor (`IcsEvent[]`, con fecha real y festivos ya
- * excluidos, ver CalendarioPage#handleCompareBalance) — no vuelve a tocar `weeks`/festivos por su
+ * excluidos, ver SchedulePage, pestaña «Prácticas») — no vuelve a tocar `weeks`/festivos por su
  * cuenta, así hereda gratis la misma lógica de fechas que el resto del calendario.
  */
 
