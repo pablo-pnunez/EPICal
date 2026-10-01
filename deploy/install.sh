@@ -88,6 +88,8 @@ mkdir -p "$APP_DIR" "$DATA_DIR"
 
 # Copia el proyecto (sin dependencias ni datos locales de desarrollo).
 if [ "$SRC_DIR" != "$APP_DIR" ]; then
+  # El código fuente se reemplaza entero: tar no borra, y un fichero eliminado en Git seguiría compilándose.
+  rm -rf "$APP_DIR/server/src" "$APP_DIR/web/src"
   tar -C "$SRC_DIR" --exclude=node_modules --exclude=.venv --exclude=data --exclude=dist --exclude=.git --exclude=.env -cf - . | tar -C "$APP_DIR" -xf -
 fi
 
