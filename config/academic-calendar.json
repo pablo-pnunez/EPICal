@@ -1,0 +1,3 @@
+{
+  "_comment": "CORRECCIONES MANUALES (opcional). Las fechas de cada cuatrimestre y los festivos se extraen solos de la hoja 'Calendario semanal' de los PDF de horarios. Solo añade aquí un curso si la extracción falla o si la EPI publica algo mal: si un curso aparece en este fichero, ese curso se toma ENTERO de aquí (ignora lo extraído). Formato por curso, con la clave 'AAAA-AAAA+1': { \"festivos\": [\"dd/mm/aaaa\", ...], \"nombres\": { \"dd/mm/aaaa\": \"Nombre\" }, \"q1\": { \"start\": \"dd/mm/aaaa\", \"end\": \"dd/mm/aaaa\", \"first_week\": 1 }, \"q2\": { ... } }. Se lee en cada petición: no hace falta reiniciar."
+}

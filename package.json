@@ -1,0 +1,16 @@
+{
+  "name": "epical",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Horarios de la EPI Gijón: descarga periódica de los PDF, extracción y web pública con exportación a .ics/Excel",
+  "scripts": {
+    "setup": "npm --prefix server ci && npm --prefix web ci",
+    "build": "npm --prefix server run build && npm --prefix web run build",
+    "start": "node server/dist/index.js",
+    "dev:server": "npm --prefix server run dev",
+    "dev:web": "npm --prefix web run dev",
+    "refresh": "npm --prefix server run refresh",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix web run typecheck",
+    "test:events": "node tests/run-events-test.mjs"
+  }
+}

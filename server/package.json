@@ -1,0 +1,29 @@
+{
+  "name": "epical-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Descarga y procesa periódicamente los horarios PDF de la EPI Gijón y los sirve ya extraídos",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "refresh": "tsx src/cli-refresh.ts"
+  },
+  "dependencies": {
+    "@fastify/compress": "^8.0.1",
+    "@fastify/rate-limit": "^10.2.2",
+    "@fastify/static": "^9.0.0",
+    "cheerio": "^1.2.0",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.11.3",
+    "undici": "^7.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.11",
+    "typescript": "^5.9.3"
+  }
+}

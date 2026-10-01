@@ -1,0 +1,28 @@
+[Unit]
+Description=EPIcal - horarios de la EPI Gijon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=epical
+Group=epical
+WorkingDirectory=/opt/epical
+EnvironmentFile=/opt/epical/.env
+ExecStart=/usr/bin/node /opt/epical/server/dist/index.js
+Restart=on-failure
+RestartSec=5
+
+# Endurecimiento: el servicio solo necesita escribir en su carpeta de datos.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/epical
+
+[Install]
+WantedBy=multi-user.target
