@@ -10,7 +10,7 @@ Lee `README.md` para arquitectura, despliegue y mantenimiento; aquí solo lo que
 - `web/` React 19 + Vite + react-router. `lib/events.ts` expande semanas de curso a fechas reales (equivale a `subject_to_events` de Python); `lib/ics.ts` escribe el `.ics`.
 - `engine/academic.py` extrae el calendario académico (cuatrimestres + festivos con nombre) de la hoja «Calendario semanal» de cada PDF; `server/src/pipeline/calendar.ts` lo agrega por mayoría y lo guarda por curso en `state.json`. `config/academic-calendar.json` es solo un fichero **opcional de correcciones manuales** (un curso presente ahí se toma entero de ahí). Ya no hay mantenimiento anual.
 - `data/` (gitignored): `data/run1` es la carpeta de datos de desarrollo (`DATA_DIR` en `.env`). En producción, `/var/lib/epical`.
-- `deploy/` systemd + `install.sh` (**sin probar en Debian real**).
+- `deploy/` systemd + `install.sh` (instala Node 22/python3-venv con `--install-deps`; primer despliegue real en Debian 13 LXC, ajustar si aparecen fallos).
 
 ## Comandos
 ```bash

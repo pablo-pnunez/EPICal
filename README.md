@@ -46,26 +46,94 @@ Los datos públicos son ficheros JSON estáticos precomprimidos (≈3 KB cada ho
 
 ## Despliegue (sin Docker, systemd)
 
-En cualquier máquina con Debian/Ubuntu (VM, contenedor LXC, equipo físico…):
+Funciona en cualquier Debian/Ubuntu con systemd: VM, contenedor LXC, equipo físico… (pensado para Debian 12/13 y Ubuntu 22.04+).
+
+**Requisitos:** ~2 GB de disco libre (el motor Python y las dependencias ocupan ~1 GB; los PDF descargados y los datos, otros ~200 MB), 512 MB de RAM y salida a internet hacia `epigijon.uniovi.es`.
+
+### Instalación rápida
+
+Como `root`, en la máquina donde quieres instalarlo:
 
 ```bash
-apt install -y python3 python3-venv          # y Node.js >= 20
-# copia esta carpeta al servidor (git clone, scp…) y, desde ella:
-sudo bash deploy/install.sh
+apt update && apt install -y git
+git clone https://github.com/pablo-pnunez/EPICal.git
+cd EPICal
+bash deploy/install.sh --install-deps
 ```
 
-Crea el usuario `epical`, instala en `/opt/epical`, datos en `/var/lib/epical`, un entorno virtual Python propio, compila servidor y web y arranca `epical.service`. Después:
+`--install-deps` instala con `apt` lo que falte (`python3`, `python3-venv`, `curl` y **Node.js 22** desde el repositorio oficial NodeSource). El script, además:
+
+1. crea el usuario de sistema `epical`, instala en `/opt/epical` y guarda los datos en `/var/lib/epical`;
+2. crea un entorno virtual Python propio e instala el motor de extracción;
+3. instala y compila servidor y web, y limpia después las dependencias de desarrollo para ahorrar disco;
+4. crea y arranca el servicio `epical.service`, y al terminar te muestra la URL.
+
+La **primera descarga** de los ~110 PDF tarda 1-3 minutos. Mientras tanto la web aún no muestra horarios; puedes seguirla con:
 
 ```bash
-systemctl status epical
-journalctl -u epical -f          # la primera descarga completa tarda ~1 minuto
+journalctl -u epical -f
 ```
 
-Escucha en `HOST:PORT` (8080 por defecto). Para publicarla con HTTPS pon delante un proxy inverso (Caddy, nginx, Nginx Proxy Manager…) apuntando a ese puerto; el servidor ya confía en `X-Forwarded-For` para el límite de peticiones.
+Para abrir la web necesitas la IP de la máquina (en Debian mínimo no existe `ifconfig`; usa `hostname -I`) y entrar en `http://<IP>:8080`.
 
-> `deploy/install.sh` se escribió y revisó pero **no se ha ejecutado en un Debian real** (el desarrollo se hizo en Windows). Léelo antes de lanzarlo y avisa si algo falla.
+### Instalación manual de los requisitos
 
-Actualizar a una versión nueva: vuelve a copiar el código y ejecuta `sudo bash deploy/install.sh` de nuevo (no pisa `.env` ni los datos).
+Si prefieres no usar `--install-deps`, antes de `bash deploy/install.sh` necesitas:
+
+```bash
+apt install -y python3 python3-venv curl ca-certificates
+# Node.js >= 20 con npm. Debian 12 trae Node 18 (no vale); Debian 13 trae 20.x pero sin npm.
+# La opción más simple y uniforme es NodeSource:
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt install -y nodejs
+```
+
+### Después de instalar
+
+- **Configuración:** edita `/opt/epical/.env` (puerto, cada cuántas horas se revisa la EPI, `ADMIN_TOKEN`…; ver la tabla de abajo) y aplica los cambios con `systemctl restart epical`.
+- **HTTPS y dominio:** pon delante un proxy inverso (Caddy, nginx, Nginx Proxy Manager…) hacia `127.0.0.1:8080`. Si el proxy está en la misma máquina, pon `HOST=127.0.0.1` en `.env` para que la web solo sea accesible a través de él. Ejemplo mínimo con Caddy:
+
+  ```
+  horarios.ejemplo.es {
+      reverse_proxy 127.0.0.1:8080
+  }
+  ```
+
+  El servidor ya confía en `X-Forwarded-For` para el límite de peticiones.
+- **Forzar una actualización ahora** (con `ADMIN_TOKEN` definido en `.env`):
+
+  ```bash
+  curl -X POST -H "Authorization: Bearer <tu-token>" http://127.0.0.1:8080/api/admin/refresh
+  ```
+
+- **Ver el estado:** `systemctl status epical`, `journalctl -u epical -n 50` y `curl http://127.0.0.1:8080/data/status.json` (última comprobación y cursos sin calendario).
+
+### Actualizar a una versión nueva
+
+```bash
+cd EPICal && git pull
+bash deploy/install.sh
+```
+
+No pisa `.env` ni los datos descargados.
+
+### Desinstalar
+
+```bash
+systemctl disable --now epical
+rm -rf /opt/epical /var/lib/epical /etc/systemd/system/epical.service
+userdel epical && systemctl daemon-reload
+```
+
+### Problemas frecuentes
+
+| Síntoma | Causa y solución |
+|---|---|
+| `FALTA: Node.js >= 20 con npm` | No hay Node, o es antiguo (Debian 12 trae Node 18; Debian 13 no incluye npm). Ejecuta `bash deploy/install.sh --install-deps`. |
+| `ifconfig: command not found` | Debian mínimo no lo incluye. Usa `hostname -I` (o `ip -br a`). |
+| `No space left on device` | La instalación necesita ~1 GB y los datos ~200 MB. Amplía el disco del contenedor o la VM. |
+| La web carga pero dice «No se pudo cargar el catálogo» | Aún no ha terminado la primera descarga: espera 1-3 min y mira `journalctl -u epical -f`. Si falla la red, comprueba que la máquina llega a `https://epigijon.uniovi.es`. |
+| El servicio no arranca | `journalctl -u epical -n 50 --no-pager`; casi siempre es un valor inválido en `/opt/epical/.env` o el puerto ya ocupado. |
 
 ## Configuración (`.env`)
 
@@ -96,7 +164,9 @@ Los PDF dicen «semana 7 de curso», no la fecha. La última hoja de cada PDF (�
 
 El parser avisa en el log de cualquier cosa rara (acrónimos fuera de la leyenda, semanas ilegibles, columnas deducidas) y **un PDF que falla se marca como error** en la web (con enlace al original) sin afectar a los demás. Tras modificar `engine/timetable.py` sube `PARSER_VERSION` en `server/src/pipeline/state.ts`: en la siguiente pasada se reprocesan **todos los PDF ya descargados**, sin volver a bajarlos.
 
-### Comandos útiles
+### Comandos útiles (desarrollo)
+
+Estos comandos son para trabajar con el código clonado (`npm run setup` instala también las dependencias de desarrollo). En un servidor instalado con `install.sh` esas dependencias se eliminan; para actualizar allí usa la llamada a `/api/admin/refresh` descrita arriba.
 
 ```bash
 npm run refresh                         # una actualización inmediata (sin servidor web)
