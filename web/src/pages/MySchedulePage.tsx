@@ -43,12 +43,10 @@ interface Resolved {
   /** Nombre real de la asignatura (leyenda del PDF) y todos sus grupos en ese PDF. */
   name: string;
   groups: string[];
-  /** Semanas del cuatrimestre (1, 2, 3…) con clase de cada grupo, para poder quedarse con parte de ellas. */
+  /** Semanas del curso (numeración del PDF) con clase de cada grupo, para poder quedarse con parte de ellas. */
   allWeeks: Record<string, number[]>;
-  /** Fecha (corta) del lunes de una semana del cuatrimestre. */
+  /** Fecha (corta) del lunes de una semana del curso. */
   dateOfWeek: (week: number) => string | undefined;
-  /** Semana de curso del PDF = semana del cuatrimestre + weekOffset. */
-  weekOffset: number;
 }
 
 const WEEK_DATE = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -107,7 +105,7 @@ function MyScheduleView({ catalog }: { catalog: Catalog }) {
         const lastUtc = q ? dmy(q.end) : 0;
         const firstMonday = firstUtc - ((new Date(firstUtc).getUTCDay() + 6) % 7) * DAY;
         const festivos = new Set(isCourseCalendar(cal) ? cal.festivos.map(dmy) : []);
-        // Semanas del cuatrimestre (1, 2, 3…, no las del curso entero) en las que el grupo tiene clase de verdad:
+        // Semanas del curso con el mismo número que en el PDF (el 2.º cuatrimestre empieza hacia la 21) en las que el grupo tiene clase de verdad:
         // el PDF lista semanas de todo el año y hay semanas con festivo.
         const allWeeks: Record<string, number[]> = {};
         if (q) {
@@ -116,13 +114,13 @@ function MyScheduleView({ catalog }: { catalog: Catalog }) {
             for (const w of row.weeks) {
               const date = firstMonday + (w - q.first_week) * 7 * DAY + row.day * DAY;
               if (date < firstUtc || date > lastUtc || festivos.has(date)) continue;
-              (allWeeks[row.group] ??= []).push(w - q.first_week + 1);
+              (allWeeks[row.group] ??= []).push(w);
             }
           }
           for (const g of Object.keys(allWeeks)) allWeeks[g] = [...new Set(allWeeks[g])].sort((a, b) => a - b);
         }
-        const dateOfWeek = (week: number) => (q ? WEEK_DATE.format(new Date(firstMonday + (week - 1) * 7 * DAY)) : undefined);
-        return { entry: { ...entry, subject: acr }, loc, sched, name, groups, allWeeks, dateOfWeek, weekOffset: q ? q.first_week - 1 : 0 };
+        const dateOfWeek = (week: number) => (q ? WEEK_DATE.format(new Date(firstMonday + (week - q.first_week) * 7 * DAY)) : undefined);
+        return { entry: { ...entry, subject: acr }, loc, sched, name, groups, allWeeks, dateOfWeek };
       }),
     [entries, locs, schedules.data, calendar.data]
   );
@@ -148,7 +146,7 @@ function MyScheduleView({ catalog }: { catalog: Catalog }) {
           .filter((x) => x.subject === r.entry.subject && chosen.includes(x.group))
           .map((x) => {
             const only = r.entry.weeks?.[x.group];
-            return only ? { ...x, weeks: x.weeks.filter((w) => only.includes(w - r.weekOffset)) } : x;
+            return only ? { ...x, weeks: x.weeks.filter((w) => only.includes(w)) } : x;
           });
         const ev = buildEvents(rows, r.sched.cuatrimestre, cal, { nameOf: () => r.name });
         // Una misma clase en dos PDF (dobles grados) no se duplica.
@@ -428,7 +426,7 @@ function WeeksControl({ r, cur, onChange }: { r: Resolved; cur: string[]; onChan
               Alternas (2.ª)
             </button>
           </div>
-          <small className="muted">Semanas del cuatrimestre (sin festivos); pasa el ratón para ver la fecha.</small>
+          <small className="muted">Semanas del curso, como en el PDF (sin festivos); pasa el ratón para ver la fecha.</small>
         </div>
       )}
     </div>
