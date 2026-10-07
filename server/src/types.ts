@@ -169,10 +169,20 @@ export interface ChangeItem {
   detail?: string[];
 }
 
+/** Un grado cuyo curso académico cambió (p.ej. de 2026-2027 a 2027-2028). Sus PDF no se listan uno a uno en `items`. */
+export interface NewCourse {
+  gradoSlug: string;
+  gradoNombre: string;
+  /** Normalizado, p.ej. "2027-2028". */
+  academicYear: string;
+}
+
 export interface ChangeEntry {
   /** Cuándo terminó la actualización que lo detectó (ISO). */
   at: string;
   items: ChangeItem[];
+  /** Grados que estrenan curso académico en esta actualización (ausente si ninguno). */
+  newCourses?: NewCourse[];
 }
 
 export interface ChangeLog {

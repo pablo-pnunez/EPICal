@@ -5,7 +5,7 @@ import { paths } from "../paths.js";
 import { downloadPdf, fetchHtml, headPdf } from "../scrape/http.js";
 import { parseGradosList } from "../scrape/gradosList.js";
 import { parseHorarios } from "../scrape/horarios.js";
-import type { Catalog, CatalogGrado, ChangeItem, ChangeLog, Grado, ScrapedHorarios } from "../types.js";
+import type { Catalog, CatalogGrado, ChangeItem, ChangeLog, Grado, NewCourse, ScrapedHorarios } from "../types.js";
 import { ensureDir, exists, hoursSince, mapLimit, readJsonIfExists, sha256, writeFileAtomic, writeJsonPublic } from "../util.js";
 import { refreshCalendars } from "./calendar.js";
 import { buildCatalog, buildSubjectIndex, pdfIdFromUrl, semesterHint } from "./catalog.js";
@@ -247,12 +247,23 @@ function markParseError(state: State, id: string, message: string): void {
  * Añade al registro público (changes.json) una entrada con los horarios que cambiaron en esta ejecución.
  * Solo cuenta cambios de contenido del PDF (hash), no reprocesados por versión del motor ni verificaciones sin cambios.
  * En la primera ejecución (sin catálogo previo) no se anota nada: todo sería «nuevo».
+ * Si un grado cambia de curso académico, sus PDF (todos nuevos) se resumen en una sola línea (`newCourses`) en vez de listarlos.
  */
 async function recordChanges(catalog: Catalog, previous: Catalog | null, changedPdfs: Map<string, ChangeItem["kind"]>, at: string): Promise<void> {
   const changeLog = (await readJsonIfExists<ChangeLog>(paths.changes)) ?? { version: 1 as const, entries: [] };
   const items: ChangeItem[] = [];
+  const newCourses: NewCourse[] = [];
+  if (previous) {
+    const before = new Map(previous.grados.map((g) => [g.slug, g.academicYear]));
+    for (const g of catalog.grados) {
+      const was = before.get(g.slug);
+      if (g.academicYear && was && was !== g.academicYear) newCourses.push({ gradoSlug: g.slug, gradoNombre: g.nombre, academicYear: g.academicYear });
+    }
+  }
+  const rolled = new Set(newCourses.map((n) => n.gradoSlug));
   if (previous && changedPdfs.size) {
     for (const g of catalog.grados) {
+      if (rolled.has(g.slug)) continue;
       for (const c of g.cursos) {
         for (const s of c.semestres) {
           for (const p of s.grupos) {
@@ -264,8 +275,9 @@ async function recordChanges(catalog: Catalog, previous: Catalog | null, changed
       }
     }
   }
-  if (!items.length && (await exists(paths.changes))) return;
-  if (items.length) changeLog.entries.unshift({ at, items });
+  const recorded = items.length > 0 || newCourses.length > 0;
+  if (!recorded && (await exists(paths.changes))) return;
+  if (recorded) changeLog.entries.unshift({ at, items, ...(newCourses.length ? { newCourses } : {}) });
   changeLog.entries = changeLog.entries.slice(0, CHANGELOG_MAX_ENTRIES);
   await writeJsonPublic(paths.changes, changeLog);
 }

@@ -123,6 +123,10 @@ button {
   background: var(--accent-bg);
   color: var(--accent);
 }
+.changelog__dot--course {
+  background: var(--ok-bg);
+  color: var(--ok);
+}
 .changelog__body {
   min-width: 0;
 }
