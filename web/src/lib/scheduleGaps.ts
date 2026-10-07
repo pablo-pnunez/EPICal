@@ -16,7 +16,10 @@
  * hueco sólo cuenta si NINGUNA asignatura/grupo tiene clase ahí — válido para TODOS los alumnos sea cual sea su grupo real.
  */
 
+import type { CalEvent } from "./events";
 import type { IcsEvent } from "./ics";
+
+const DAY_MS = 86_400_000;
 
 const MADRID_YMD_FMT = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" });
 const MADRID_HOUR_FMT = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hourCycle: "h23" });
@@ -50,6 +53,8 @@ export interface GapSlot {
   hourStart: number;
   /** Exclusivo (p.ej. 12–14 son dos horas, de 12:00 a 14:00). */
   hourEnd: number;
+  /** Nº de semana del curso (numeración del PDF) a la que pertenece la fecha. */
+  week: number;
 }
 
 export interface ScheduleGapsResult {
@@ -62,8 +67,16 @@ export interface ScheduleGapsResult {
 }
 
 /** `classEvents`/`holidayEvents`: eventos de clase y de festivo ya calculados por `buildEvents` (lib/events.ts) para TODAS las asignaturas y grupos. */
-export function findScheduleGaps(classEvents: IcsEvent[], holidayEvents: IcsEvent[]): ScheduleGapsResult | null {
+export function findScheduleGaps(classEvents: CalEvent[], holidayEvents: CalEvent[]): ScheduleGapsResult | null {
   if (classEvents.length === 0) return null;
+
+  // Semana de curso de cualquier fecha: por distancia en semanas desde un evento de referencia (un día entero libre no tiene evento propio).
+  const ref = classEvents[0]!;
+  const refMonday = madridCalendarDate(ref.start).getTime() - madridWeekday(ref.start) * DAY_MS;
+  const weekOf = (d: Date): number => {
+    const monday = d.getTime() - ((d.getUTCDay() + 6) % 7) * DAY_MS;
+    return ref.week + Math.round((monday - refMonday) / (7 * DAY_MS));
+  };
 
   const windowStart = Math.min(...classEvents.map((ev) => madridHour(ev.start)));
   const windowEnd = Math.max(...classEvents.map((ev) => madridHour(ev.end)));
@@ -103,7 +116,7 @@ export function findScheduleGaps(classEvents: IcsEvent[], holidayEvents: IcsEven
       const isFree = h < windowEnd && !dayEvents.some((ev) => madridHour(ev.start) <= h && h < madridHour(ev.end));
       if (isFree && runStart === null) runStart = h;
       if (!isFree && runStart !== null) {
-        slots.push({ date: key, day, hourStart: runStart, hourEnd: h });
+        slots.push({ date: key, day, hourStart: runStart, hourEnd: h, week: weekOf(d) });
         runStart = null;
       }
     }

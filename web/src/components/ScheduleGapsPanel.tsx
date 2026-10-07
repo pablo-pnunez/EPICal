@@ -37,7 +37,7 @@ export function ScheduleGapsPanel({ result }: { result: ScheduleGapsResult }) {
   return (
     <div>
       <p className="muted" style={{ marginBottom: "0.75rem" }}>
-        Fechas y horas concretas en las que NINGUNA asignatura ni grupo de este horario tiene clase, útiles por ejemplo para fijar una tutoría o mover una clase sin choques. Solo cuentan los días de la semana con clase, dentro del horario habitual del curso ({formatHour(windowStart)}–{formatHour(windowEnd)}) y sin festivos. No depende de lo que hayas marcado.
+        Fechas y horas concretas en las que NINGUNA asignatura ni grupo de este horario tiene clase, útiles por ejemplo para fijar una tutoría o mover una clase sin choques. Solo cuentan los días de la semana con clase, dentro del horario habitual del curso ({formatHour(windowStart)}–{formatHour(windowEnd)}) y sin festivos. Junto a cada hueco se indica la semana del curso (la numeración del PDF). No depende de lo que hayas marcado.
       </p>
 
       {months.length === 0 ? (
@@ -63,6 +63,9 @@ export function ScheduleGapsPanel({ result }: { result: ScheduleGapsResult }) {
                             <span className="gaps-slot__date">{dayOfMonth(slot.date)}</span>
                             <span className="gaps-slot__hours">
                               {formatHour(slot.hourStart)}–{formatHour(slot.hourEnd)}
+                            </span>
+                            <span className="muted" style={{ fontSize: "0.72rem" }} title="Semana del curso (numeración del PDF)">
+                              Sem. {slot.week}
                             </span>
                           </div>
                         ))
