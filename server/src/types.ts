@@ -150,3 +150,33 @@ export interface ParsedSchedule {
   subjects: SubjectInfo[];
   parsedAt: string;
 }
+
+// ---------------- Registro de cambios (changes.json) ----------------
+
+/** Un horario que cambió (o apareció) en una actualización. */
+export interface ChangeItem {
+  pdfId: string;
+  kind: "new" | "changed";
+  gradoSlug: string;
+  gradoNombre: string;
+  /** Texto del curso en la web, p.ej. "Tercero". */
+  curso: string;
+  semestre: string;
+  grupo: string | null;
+  /** Ruta de la web hacia el horario: /grado/<slug>/<path>. */
+  href: string;
+  /** Hueco para más detalle en el futuro (líneas de texto libre: «Lunes 9-11 PL A1: cambia de aula»). Hoy no se rellena. */
+  detail?: string[];
+}
+
+export interface ChangeEntry {
+  /** Cuándo terminó la actualización que lo detectó (ISO). */
+  at: string;
+  items: ChangeItem[];
+}
+
+export interface ChangeLog {
+  version: 1;
+  /** Más reciente primero. */
+  entries: ChangeEntry[];
+}

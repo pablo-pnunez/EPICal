@@ -11,6 +11,7 @@ export const paths = {
   catalog: path.join(config.dataDir, "public", "catalog.json"),
   scheduleDir: path.join(config.dataDir, "public", "schedules"),
   status: path.join(config.dataDir, "public", "status.json"),
+  changes: path.join(config.dataDir, "public", "changes.json"),
   subjectIndex: path.join(config.dataDir, "public", "subjects-index.json"),
   pdfFile: (id: string) => path.join(config.dataDir, "pdf", `${id}.pdf`),
   scheduleFile: (id: string) => path.join(config.dataDir, "public", "schedules", `${id}.json`),

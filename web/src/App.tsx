@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { ChangesPage } from "./pages/ChangesPage";
 import { GradoPage } from "./pages/GradoPage";
 import { HomePage } from "./pages/HomePage";
 import { MySchedulePage } from "./pages/MySchedulePage";
@@ -27,6 +28,7 @@ export function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<HomePage />} />
+        <Route path="cambios" element={<ChangesPage />} />
         <Route path="mi-horario" element={<MySchedulePage />} />
         <Route path="grado/:slug" element={<GradoPage />} />
         <Route path="grado/:slug/:year/:curso/:sem/:grupo" element={<SchedulePage />} />

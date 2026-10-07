@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Catalog, ParsedSchedule } from "../types";
+import type { Catalog, ChangeLog, ParsedSchedule } from "../types";
 import type { AcademicCalendar } from "./events";
 
 export interface SubjectIndexEntry {
@@ -36,6 +36,8 @@ export const getSchedule = (id: string) => getJson<ParsedSchedule>(`/data/schedu
 export const getAcademicCalendar = () => getJson<AcademicCalendar>("/api/academic-calendar");
 export const getSubjectIndex = () => getJson<SubjectIndexEntry[]>("/data/subjects-index.json");
 export const getStatus = () => getJson<SiteStatus>("/data/status.json");
+/** Sin fichero (aún no se ha registrado ninguna actualización) equivale a un registro vacío. */
+export const getChanges = () => getJson<ChangeLog>("/data/changes.json").catch((): ChangeLog => ({ version: 1, entries: [] }));
 
 export interface AsyncState<T> {
   data: T | null;

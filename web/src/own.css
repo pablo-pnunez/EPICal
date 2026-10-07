@@ -76,6 +76,83 @@ button {
   text-align: center;
 }
 
+.changelog__day {
+  margin-bottom: 1rem;
+  padding: 0;
+}
+.changelog__date {
+  margin: 0;
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 1rem;
+}
+.changelog__date::first-letter {
+  text-transform: uppercase;
+}
+.changelog__list {
+  list-style: none;
+  margin: 0;
+  padding: 1rem 1.2rem 0.3rem;
+}
+.changelog__item {
+  position: relative;
+  display: flex;
+  gap: 0.8rem;
+  padding-bottom: 1rem;
+}
+.changelog__item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 34px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--border);
+}
+.changelog__dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--purple-bg);
+  color: var(--purple);
+}
+.changelog__dot--new {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.changelog__body {
+  min-width: 0;
+}
+.changelog__body p {
+  margin: 0;
+}
+.changelog__text {
+  padding-top: 0.3rem;
+  font-weight: 600;
+}
+.changelog__text a {
+  color: inherit;
+}
+.changelog__text .muted {
+  font-weight: normal;
+}
+.changelog__what {
+  margin-top: 0.1rem;
+}
+.changelog__detail {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+.changelog__time {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+}
+
 .status {
   display: flex;
   align-items: center;

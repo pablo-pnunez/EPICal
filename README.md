@@ -37,7 +37,7 @@ El grupo sale de la etiqueta de la web (`B_Eng` → `b-eng`; los asteriscos se i
                                 pdf/<id>.pdf          PDF descargados
                                 excel-cache/          Excel ya generados
                                 public/               ← lo único que sirve HTTP (JSON + .gz precomprimido)
-                                  catalog.json  subjects-index.json  status.json  schedules/<id>.json
+                                  catalog.json  subjects-index.json  status.json  changes.json  schedules/<id>.json
                                      │
  navegador ◀── /data/*.json, /api/academic-calendar, POST /api/excel, SPA (web/dist)
 ```

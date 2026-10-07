@@ -1,7 +1,9 @@
 import { CalendarDays, UserRound } from "lucide-react";
 import { Link, Outlet } from "react-router-dom";
-import { getStatus, useAsync } from "../lib/api";
+import { getChanges, getStatus, useAsync } from "../lib/api";
 import { ThemeToggle } from "./ThemeToggle";
+
+const DATE_FMT = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
 
 function ago(iso: string): string {
   const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -13,7 +15,9 @@ function ago(iso: string): string {
 
 export function Layout() {
   const status = useAsync(getStatus, []);
+  const changes = useAsync(getChanges, []);
   const last = status.data?.lastSuccessAt;
+  const lastChange = changes.data?.entries[0]?.at;
   return (
     <div className="shell">
       <header className="topbar">
@@ -37,6 +41,12 @@ export function Layout() {
             epigijon.uniovi.es
           </a>
           {last ? <> · revisados {ago(last)}</> : null}. Proyecto no oficial.
+          {changes.data ? (
+            <>
+              {" "}
+              <Link to="/cambios">{lastChange ? `Último cambio de horarios: ${DATE_FMT.format(new Date(lastChange))}` : "Registro de cambios"}</Link>
+            </>
+          ) : null}
         </p>
       </footer>
     </div>

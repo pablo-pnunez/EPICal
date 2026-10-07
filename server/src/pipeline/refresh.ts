@@ -5,7 +5,7 @@ import { paths } from "../paths.js";
 import { downloadPdf, fetchHtml, headPdf } from "../scrape/http.js";
 import { parseGradosList } from "../scrape/gradosList.js";
 import { parseHorarios } from "../scrape/horarios.js";
-import type { Catalog, CatalogGrado, Grado, ScrapedHorarios } from "../types.js";
+import type { Catalog, CatalogGrado, ChangeItem, ChangeLog, Grado, ScrapedHorarios } from "../types.js";
 import { ensureDir, exists, hoursSince, mapLimit, readJsonIfExists, sha256, writeFileAtomic, writeJsonPublic } from "../util.js";
 import { refreshCalendars } from "./calendar.js";
 import { buildCatalog, buildSubjectIndex, pdfIdFromUrl, semesterHint } from "./catalog.js";
@@ -14,6 +14,7 @@ import { PARSER_VERSION, loadState, saveState, type PdfState, type RunStats, typ
 
 const PARSE_CHUNK = 20;
 const FORGET_AFTER_DAYS = 60;
+const CHANGELOG_MAX_ENTRIES = 30;
 
 let running: Promise<RunStats> | null = null;
 
@@ -103,9 +104,10 @@ async function runRefresh(trigger: RunStats["trigger"]): Promise<RunStats> {
   // ---- 3. Detección de cambios: HEAD (tamaño) y, de vez en cuando, descarga completa (hash) ----
   const now = new Date().toISOString();
   const toParse: PdfEntry[] = [];
+  const changedPdfs = new Map<string, ChangeItem["kind"]>();
   await mapLimit([...entries.values()], config.scrapeConcurrency, async (e) => {
     try {
-      const needsParse = await checkPdf(e, state, stats, now);
+      const needsParse = await checkPdf(e, state, stats, now, changedPdfs);
       if (needsParse) toParse.push(e);
     } catch (err) {
       stats.errors.push(`PDF ${e.id}: ${(err as Error).message}`);
@@ -167,11 +169,11 @@ async function runRefresh(trigger: RunStats["trigger"]): Promise<RunStats> {
     }
   }
 
-  return finish(state, stats, previous, { grados, horarios });
+  return finish(state, stats, previous, { grados, horarios }, changedPdfs);
 }
 
-/** Devuelve true si el PDF hay que (re)procesar. */
-async function checkPdf(e: PdfEntry, state: State, stats: RunStats, now: string): Promise<boolean> {
+/** Devuelve true si el PDF hay que (re)procesar. Anota en `changedPdfs` los que cambiaron de contenido o son nuevos. */
+async function checkPdf(e: PdfEntry, state: State, stats: RunStats, now: string, changedPdfs: Map<string, ChangeItem["kind"]>): Promise<boolean> {
   const st = state.pdfs[e.id];
   const haveFiles = st ? (await exists(paths.pdfFile(e.id))) && (st.status !== "ok" || (await exists(paths.scheduleFile(e.id)))) : false;
 
@@ -225,6 +227,7 @@ async function checkPdf(e: PdfEntry, state: State, stats: RunStats, now: string)
     error: "pendiente de procesar",
   };
   stats.changed++;
+  changedPdfs.set(e.id, st ? "changed" : "new");
   log("refresh", `PDF ${e.id} ${st ? "CAMBIÓ" : "nuevo"} (${reason})`);
   return true;
 }
@@ -240,7 +243,40 @@ function markParseError(state: State, id: string, message: string): void {
   void fs.rm(`${paths.scheduleFile(id)}.gz`, { force: true });
 }
 
-async function finish(state: State, stats: RunStats, previous: Catalog | null, scraped: { grados: Grado[]; horarios: Map<string, ScrapedHorarios> } | null): Promise<RunStats> {
+/**
+ * Añade al registro público (changes.json) una entrada con los horarios que cambiaron en esta ejecución.
+ * Solo cuenta cambios de contenido del PDF (hash), no reprocesados por versión del motor ni verificaciones sin cambios.
+ * En la primera ejecución (sin catálogo previo) no se anota nada: todo sería «nuevo».
+ */
+async function recordChanges(catalog: Catalog, previous: Catalog | null, changedPdfs: Map<string, ChangeItem["kind"]>, at: string): Promise<void> {
+  const changeLog = (await readJsonIfExists<ChangeLog>(paths.changes)) ?? { version: 1 as const, entries: [] };
+  const items: ChangeItem[] = [];
+  if (previous && changedPdfs.size) {
+    for (const g of catalog.grados) {
+      for (const c of g.cursos) {
+        for (const s of c.semestres) {
+          for (const p of s.grupos) {
+            const kind = changedPdfs.get(p.id);
+            if (!kind) continue;
+            items.push({ pdfId: p.id, kind, gradoSlug: g.slug, gradoNombre: g.nombre, curso: c.curso, semestre: s.texto, grupo: p.etiqueta, href: `/grado/${g.slug}/${p.path}` });
+          }
+        }
+      }
+    }
+  }
+  if (!items.length && (await exists(paths.changes))) return;
+  if (items.length) changeLog.entries.unshift({ at, items });
+  changeLog.entries = changeLog.entries.slice(0, CHANGELOG_MAX_ENTRIES);
+  await writeJsonPublic(paths.changes, changeLog);
+}
+
+async function finish(
+  state: State,
+  stats: RunStats,
+  previous: Catalog | null,
+  scraped: { grados: Grado[]; horarios: Map<string, ScrapedHorarios> } | null,
+  changedPdfs: Map<string, ChangeItem["kind"]> = new Map()
+): Promise<RunStats> {
   stats.finishedAt = new Date().toISOString();
 
   if (scraped) {
@@ -254,6 +290,7 @@ async function finish(state: State, stats: RunStats, previous: Catalog | null, s
     catalog.grados.push(...kept);
     catalog.grados.sort((a, b) => scraped.grados.findIndex((g) => g.slug === a.slug) - scraped.grados.findIndex((g) => g.slug === b.slug));
     await writeJsonPublic(paths.catalog, catalog);
+    await recordChanges(catalog, previous, changedPdfs, stats.finishedAt);
     state.lastSuccessAt = stats.finishedAt;
 
     // Índice global de asignaturas para el buscador (lee los horarios ya extraídos, ~3 KB cada uno).
