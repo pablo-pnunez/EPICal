@@ -146,15 +146,76 @@ button {
 .changelog__what {
   margin-top: 0.1rem;
 }
-.changelog__detail {
-  margin: 0.3rem 0 0;
-  padding-left: 1.1rem;
-  font-size: 0.9rem;
+.changelog__details {
+  margin-top: 0.3rem;
+}
+.changelog__details summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--accent);
+  list-style: none;
+}
+.changelog__details summary::-webkit-details-marker {
+  display: none;
+}
+.changelog__chevron {
+  transition: transform 0.15s ease;
+}
+.changelog__details[open] .changelog__chevron {
+  transform: rotate(180deg);
 }
 .changelog__time {
   display: block;
   margin-top: 0.15rem;
   font-size: 0.8rem;
+}
+
+.detailrows {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.detailrow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.detailrow:last-child {
+  border-bottom: none;
+}
+.detailrow__icon {
+  flex: none;
+  color: var(--muted);
+}
+.detailrow__icon--room {
+  color: var(--accent);
+}
+.detailrow__icon--time {
+  color: var(--warn);
+}
+.detailrow__icon--new {
+  color: var(--ok);
+}
+.detailrow__icon--removed {
+  color: var(--err);
+}
+.detailrow__when {
+  flex: none;
+}
+.detailrow__what {
+  font-weight: 600;
+}
+.detailrow__change {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .status {
@@ -1004,6 +1065,72 @@ button {
   flex: 1;
 }
 
+/* Vista "Lista" del calendario de exámenes: todas las fechas filtradas juntas, sin paginar por mes. */
+.exam-convocatorias {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.exam-convocatoria__title {
+  margin: 0 0 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.exam-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.exam-day {
+  font-size: 0.85rem;
+}
+.exam-day__date {
+  font-weight: 600;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 0.15rem;
+}
+.exam-day ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.exam-entry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.exam-entry__subject {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Resaltado de exámenes en el calendario mensual y en la agenda: color propio (morado, igual convención que usa la EPI en el PDF para el periodo de exámenes), independiente del coloreado por asignatura/tipo de grupo. */
+.calendar-event--exam {
+  background: var(--purple-bg);
+  border-left-color: var(--purple);
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.calendar-event--exam svg {
+  flex-shrink: 0;
+  color: var(--purple);
+}
+.agenda__item--exam {
+  border-left-color: var(--purple);
+}
+.agenda__item--exam .agenda__time {
+  color: var(--purple);
+}
+
 .theme-toggle {
   margin-left: auto;
 }
@@ -1050,9 +1177,12 @@ button {
 .agenda__nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+}
+.agenda__nav strong {
+  flex: 1;
+  text-align: center;
 }
 .agenda__day {
   margin-bottom: 0.9rem;

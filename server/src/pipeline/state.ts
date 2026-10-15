@@ -1,9 +1,12 @@
 import { paths } from "../paths.js";
-import type { CalendarData } from "../types.js";
+import type { CalendarData, ExamDataRaw } from "../types.js";
 import { readJsonIfExists, writeFileAtomic } from "../util.js";
 
 /** Súbela cuando cambie el motor de extracción (engine/timetable.py): fuerza a reprocesar todos los PDF ya descargados. */
 export const PARSER_VERSION = 2;
+
+/** Súbela cuando cambie el motor de extracción de exámenes (engine/exams.py): fuerza a reprocesar los PDF de examen ya descargados. Independiente de PARSER_VERSION. */
+export const EXAM_PARSER_VERSION = 2;
 
 export interface PdfState {
   url: string;
@@ -30,6 +33,25 @@ export interface PdfState {
   calendarError?: string;
 }
 
+/** Estado de un PDF "Calendario de exámenes AAAA-AA" (uno por grado y curso académico; nunca se habían descargado). */
+export interface ExamPdfState {
+  url: string;
+  descripcion: string;
+  gradoSlug: string;
+  contentLength: number | null;
+  sha256: string;
+  downloadedAt: string;
+  lastFullVerifyAt: string;
+  changedAt: string;
+  lastSeenAt: string;
+  parserVersion: number;
+  parsedAt?: string;
+  status: "ok" | "error";
+  error?: string;
+  /** Salida cruda del extractor (sin vincular `subjectAcronym` todavía: eso lo hace pipeline/exams.ts). */
+  data?: ExamDataRaw;
+}
+
 export interface RunStats {
   startedAt: string;
   finishedAt?: string;
@@ -54,6 +76,8 @@ export interface State {
   lastSuccessAt?: string;
   /** Calendario académico VIGENTE de cada curso ("2026-2027"), por votación entre PDF. Se conserva aunque el curso desaparezca de la web. */
   calendars?: Record<string, { data: CalendarData; updatedAt: string }>;
+  /** PDF de calendarios de exámenes, uno por grado y curso académico. */
+  examPdfs?: Record<string, ExamPdfState>;
 }
 
 export async function loadState(): Promise<State> {

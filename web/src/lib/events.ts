@@ -10,7 +10,7 @@
  * año ISO (semana 52/53 -> 1), caso en el que el original se rompería.
  */
 
-import type { ScheduleRow } from "../types";
+import type { ExamEntry, ScheduleRow } from "../types";
 
 export interface QuarterConfig {
   /** dd/mm/aaaa */
@@ -49,6 +49,8 @@ export interface CalEvent {
   /** "aaaa-mm-dd" (fecha de calendario en Madrid). */
   date: string;
   hours: number;
+  /** Ausente = clase normal (o festivo, con allDay=true); "examen" lo resaltan las vistas de calendario. */
+  kind?: "examen";
 }
 
 export const HOLIDAY_LABEL = "FIESTA";
@@ -84,9 +86,9 @@ function offsetForDay(y: number, m: number, d: number): number {
   return off;
 }
 
-/** Hora de pared de Madrid (aaaa-mm-dd hh:00) -> instante real. Independiente de la zona horaria del navegador. */
-export function madridWallToDate(y: number, m: number, d: number, hour: number): Date {
-  return new Date(Date.UTC(y, m - 1, d, hour) - offsetForDay(y, m, d) * 60000);
+/** Hora de pared de Madrid (aaaa-mm-dd hh:mm) -> instante real. Independiente de la zona horaria del navegador. */
+export function madridWallToDate(y: number, m: number, d: number, hour: number, minute = 0): Date {
+  return new Date(Date.UTC(y, m - 1, d, hour, minute) - offsetForDay(y, m, d) * 60000);
 }
 
 function parseDMY(s: string): { y: number; m: number; d: number } {
@@ -242,3 +244,40 @@ export function isEnglishGroup(group: string): boolean {
 
 /** Colores fijos por tipo de actividad, parecidos a los de los PDF originales (teoría verde/negro, PA azul, PL rojo, TG rosa). */
 export const ACTIVITY_HUE: Record<Activity, number> = { Teoría: 165, PA: 215, PL: 8, TG: 320 };
+
+const EXAM_TIPO_LABEL: Record<string, string> = {
+  teoria: "teoría",
+  practicas: "prácticas",
+  teoria_practicas: "teoría y prácticas",
+  problemas: "problemas",
+};
+
+/**
+ * El PDF de exámenes nunca trae hora de fin: se asume esta duración (igual criterio que la app
+ * anterior). Es una aproximación, no un dato del PDF.
+ */
+export const EXAM_DURATION_HOURS = 3;
+
+/** Convierte un examen ya extraído en un evento de calendario (fecha absoluta: no necesita expansión semana->fecha). */
+export function examEntryToEvent(exam: ExamEntry, subjectName: string): CalEvent {
+  const [d, m, y] = exam.date.split("/").map(Number) as [number, number, number];
+  const [h, min] = exam.hourStart.split(":").map(Number) as [number, number];
+  const start = madridWallToDate(y, m, d, h, min);
+  const end = madridWallToDate(y, m, d, h + EXAM_DURATION_HOURS, min);
+  const tipo = exam.tipo && EXAM_TIPO_LABEL[exam.tipo];
+  return {
+    summary: `Examen: ${subjectName}${tipo ? ` (${tipo})` : ""}`,
+    location: exam.location ?? "",
+    start,
+    end,
+    subject: exam.subjectAcronym ?? "",
+    group: "",
+    allDay: false,
+    week: 0,
+    startHour: h,
+    weekday: (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7,
+    date: `${y}-${pad(m)}-${pad(d)}`,
+    hours: EXAM_DURATION_HOURS,
+    kind: "examen",
+  };
+}

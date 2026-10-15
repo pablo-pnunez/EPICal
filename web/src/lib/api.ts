@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Catalog, ChangeLog, ParsedSchedule } from "../types";
+import type { Catalog, ChangeLog, ExamData, ParsedSchedule } from "../types";
 import type { AcademicCalendar } from "./events";
 
 export interface SubjectIndexEntry {
@@ -33,6 +33,7 @@ function getJson<T>(url: string): Promise<T> {
 
 export const getCatalog = () => getJson<Catalog>("/data/catalog.json");
 export const getSchedule = (id: string) => getJson<ParsedSchedule>(`/data/schedules/${encodeURIComponent(id)}.json`);
+export const getExamData = (id: string) => getJson<ExamData>(`/data/exams/${encodeURIComponent(id)}.json`);
 export const getAcademicCalendar = () => getJson<AcademicCalendar>("/api/academic-calendar");
 export const getSubjectIndex = () => getJson<SubjectIndexEntry[]>("/data/subjects-index.json");
 export const getStatus = () => getJson<SiteStatus>("/data/status.json");

@@ -4,8 +4,32 @@ import { config } from "./config.js";
 import { paths } from "./paths.js";
 import { effectiveCalendar } from "./pipeline/calendar.js";
 import { runPython } from "./pipeline/python.js";
-import type { ParsedSchedule } from "./types.js";
+import type { Catalog, ExamData, ParsedSchedule } from "./types.js";
 import { ensureDir, exists, readJsonIfExists, sha256, writeFileAtomic } from "./util.js";
+
+/** Grado al que pertenece un PDF de horario (necesario para encontrar sus PDF de exámenes). */
+async function findGradoSlug(pdfId: string): Promise<string | null> {
+  const catalog = await readJsonIfExists<Catalog>(paths.catalog);
+  for (const g of catalog?.grados ?? []) {
+    for (const c of g.cursos) for (const s of c.semestres) if (s.grupos.some((p) => p.id === pdfId)) return g.slug;
+  }
+  return null;
+}
+
+/** Exámenes de `subject` (acrónimo ya validado contra la rejilla) entre los PDF de examen ya procesados del grado. */
+async function examsFor(pdfId: string, subject: string): Promise<ExamData["exams"]> {
+  const slug = await findGradoSlug(pdfId);
+  if (!slug) return [];
+  const catalog = await readJsonIfExists<Catalog>(paths.catalog);
+  const grado = catalog?.grados.find((g) => g.slug === slug);
+  const okIds = grado?.examenesParsed.filter((e) => e.status === "ok").map((e) => e.id) ?? [];
+  const out: ExamData["exams"] = [];
+  for (const id of okIds) {
+    const data = await readJsonIfExists<ExamData>(paths.examFile(id));
+    for (const e of data?.exams ?? []) if (e.subjectAcronym === subject) out.push(e);
+  }
+  return out;
+}
 
 export class ExcelError extends Error {
   constructor(
@@ -72,9 +96,10 @@ async function doBuild(req: ExcelRequest): Promise<{ filename: string; buffer: B
 
   const legend = schedule.subjects.find((s) => normalizeAcronym(s.acronym) === normalizeAcronym(req.subject));
   const displayName = legend?.name || req.subject;
+  const exams = await examsFor(req.id, req.subject);
 
-  // La clave incluye el contenido del horario y del calendario: si cualquiera cambia, la caché se invalida sola.
-  const hash = sha256(JSON.stringify([cacheKeyOf(req), schedule.parsedAt, sha256(calendarText)])).slice(0, 32);
+  // La clave incluye el contenido del horario, el calendario y los exámenes: si algo cambia, la caché se invalida sola.
+  const hash = sha256(JSON.stringify([cacheKeyOf(req), schedule.parsedAt, sha256(calendarText), exams])).slice(0, 32);
   await ensureDir(paths.excelCache);
   const xlsxPath = path.join(paths.excelCache, `${hash}.xlsx`);
   const namePath = path.join(paths.excelCache, `${hash}.name`);
@@ -97,6 +122,7 @@ async function doBuild(req: ExcelRequest): Promise<{ filename: string; buffer: B
         subjectName: req.subject,
         displayName,
         groups: req.groups,
+        exams,
       }),
       "utf-8"
     );

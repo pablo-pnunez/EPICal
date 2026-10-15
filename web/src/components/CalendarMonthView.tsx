@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ACTIVITY_HUE, activityOf, type Activity } from "../lib/events";
 import type { IcsEvent } from "../lib/ics";
 
+type MonthEvent = IcsEvent & { kind?: "examen" };
+
 const MONTH_YEAR_FMT = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" });
 const TIME_FMT = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 // Truco: "en-CA" formatea fechas como "AAAA-MM-DD" — usado para agrupar eventos por día EN
@@ -40,6 +42,11 @@ function isAllDay(ev: IcsEvent): boolean {
   return ev.end.getTime() - ev.start.getTime() >= 23 * 3600 * 1000;
 }
 
+/** Los exámenes se resaltan aparte (borde + icono): no participan del coloreado por asignatura/tipo de grupo. */
+function isExam(ev: MonthEvent): boolean {
+  return ev.kind === "examen";
+}
+
 /**
  * `SUMMARY` siempre viene como `"Asignatura [Grupo]"` (ver
  * `lib/events.ts#buildEvents`), tanto en el calendario de
@@ -61,21 +68,24 @@ function hueForIndex(i: number): number {
 /** Colorea por tipo de grupo (A/PL/PA/...) en el calendario de una sola asignatura, o por asignatura en el combinado "TODAS" — mismo criterio que ya usa `to_ical` para etiquetar cada evento (ver `splitSummary`). */
 export type CalendarColorBy = "groupType" | "subject";
 
-function colorKeyOf(ev: IcsEvent, colorBy: CalendarColorBy): string | null {
-  if (isAllDay(ev)) return null; // festivo: sin colorear, no es ni asignatura ni tipo de grupo
+function colorKeyOf(ev: MonthEvent, colorBy: CalendarColorBy): string | null {
+  if (isAllDay(ev) || isExam(ev)) return null; // festivo o examen: sin colorear por tipo de grupo/asignatura
   const { subject, group } = splitSummary(ev.summary);
   if (colorBy === "subject") return subject;
   return group ? activityOf(group) : null;
 }
 
 /** Vista de calendario mensual (rejilla semana-a-semana, no tabla/lista) — como pedir que se abra el .ics en un calendario de verdad. Se posiciona sola en el mes del primer evento (la clase puede empezar dentro de varios meses, no tiene sentido abrir en el mes actual del navegador). `colorBy` decide si cada evento se colorea por tipo de grupo o por asignatura (por defecto "groupType"). */
-export function CalendarMonthView({ events, colorBy = "groupType" }: { events: IcsEvent[]; colorBy?: CalendarColorBy }) {
+export function CalendarMonthView({ events, colorBy = "groupType" }: { events: MonthEvent[]; colorBy?: CalendarColorBy }) {
+  // Por defecto se abre en el mes actual (si cae dentro del rango de eventos; si no, el primer o el
+  // último mes con eventos, según toque antes o después) — mismo criterio que AgendaView y WeekView.
   const initialCursor = useMemo(() => {
-    if (events.length === 0) {
-      const now = new Date();
-      return { year: now.getFullYear(), month: now.getMonth() };
-    }
-    const [y, m] = madridDateKey(events[0]!.start).split("-").map(Number);
+    const now = new Date();
+    if (events.length === 0) return { year: now.getFullYear(), month: now.getMonth() };
+    const months = [...new Set(events.map((ev) => madridDateKey(ev.start).slice(0, 7)))].sort();
+    const todayKey = madridDateKey(now).slice(0, 7);
+    const key = months.find((m) => m >= todayKey) ?? months[months.length - 1]!;
+    const [y, m] = key.split("-").map(Number);
     return { year: y!, month: m! - 1 };
   }, [events]);
 
@@ -126,6 +136,9 @@ export function CalendarMonthView({ events, colorBy = "groupType" }: { events: I
     return <p className="muted">Este calendario no tiene eventos (puede ser el de festivos, si no hay ninguno en el rango del cuatrimestre).</p>;
   }
 
+  const now = new Date();
+  const isCurrentMonth = cursor.year === now.getFullYear() && cursor.month === now.getMonth();
+
   return (
     <div className="calendar-month">
       <div className="calendar-month__header">
@@ -135,6 +148,9 @@ export function CalendarMonthView({ events, colorBy = "groupType" }: { events: I
         <strong>{capitalizeFirst(MONTH_YEAR_FMT.format(new Date(cursor.year, cursor.month, 1)))}</strong>
         <button type="button" className="secondary" onClick={() => setCursor((c) => addMonths(c.year, c.month, 1))}>
           Siguiente ›
+        </button>
+        <button type="button" className="btn-today" disabled={isCurrentMonth} onClick={() => setCursor({ year: now.getFullYear(), month: now.getMonth() })}>
+          Hoy
         </button>
       </div>
       <div className="calendar-month__weekdays">
@@ -154,7 +170,7 @@ export function CalendarMonthView({ events, colorBy = "groupType" }: { events: I
               return (
                 <div
                   key={i}
-                  className="calendar-event"
+                  className={`calendar-event ${isExam(ev) ? "calendar-event--exam" : ""}`}
                   style={hue !== undefined ? ({ "--ev-hue": hue } as CSSProperties) : undefined}
                   title={`${isAllDay(ev) ? "Todo el día" : `${TIME_FMT.format(ev.start)}–${TIME_FMT.format(ev.end)}`} · ${ev.summary}${ev.location ? ` · ${ev.location}` : ""}`}
                 >

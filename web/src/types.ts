@@ -73,13 +73,28 @@ export interface CatalogCurso {
   semestres: CatalogSemestre[];
 }
 
+/** Un PDF "Calendario de exámenes AAAA-AA" de un grado, ya descargado y procesado. */
+export interface CatalogExamPdf {
+  /** Id estable del PDF (igual criterio que CatalogPdf.id). */
+  id: string;
+  /** Descripción tal como la publica la EPI, p.ej. "Calendario de exámenes 2026-27". */
+  descripcion: string;
+  /** Normalizado "2026-2027", si se pudo leer del propio PDF. */
+  academicYear: string | null;
+  status: PdfStatus;
+  error?: string;
+}
+
 export interface CatalogGrado extends Grado {
   /** Literal de la web, p.ej. "2026-27". */
   cursoAcademico: string;
   /** Normalizado "2026-2027" (clave de academic-calendar.json). */
   academicYear: string | null;
   cursos: CatalogCurso[];
+  /** Enlaces crudos tal como los publica la EPI (incluye documentos que no se procesan, p.ej. la convocatoria extraordinaria adelantada). */
   examenes: DocumentoPdf[];
+  /** Subconjunto de `examenes` ya descargado y con fechas extraídas (ver `public/exams/<id>.json`). */
+  examenesParsed: CatalogExamPdf[];
 }
 
 export interface Catalog {
@@ -153,6 +168,30 @@ export interface ParsedSchedule {
 
 // ---------------- Registro de cambios (changes.json) ----------------
 
+/** Qué le pasó a una clase concreta entre el horario anterior y el nuevo. */
+export type ChangeDetailKind = "room" | "time" | "new" | "removed";
+
+/**
+ * Una clase que cambió dentro de un horario (calculado por `scheduleDiff.ts`, heurístico: empareja por
+ * día/hora/asignatura/grupo, no compara semana a semana). `subject` ya viene resuelto a nombre, no acrónimo.
+ */
+export interface ChangeDetail {
+  kind: ChangeDetailKind;
+  /** 0=lunes .. 4=viernes */
+  day: number;
+  hourStart: number;
+  hourEnd: number;
+  subject: string;
+  group: string | null;
+  /** Aula nueva (kind "new"/"time"/"room") o la que tenía (kind "removed"). */
+  room: string;
+  /** Solo en kind "room": aula anterior. */
+  previousRoom?: string;
+  /** Solo en kind "time": hora anterior. */
+  previousHourStart?: number;
+  previousHourEnd?: number;
+}
+
 /** Un horario que cambió (o apareció) en una actualización. */
 export interface ChangeItem {
   pdfId: string;
@@ -165,8 +204,39 @@ export interface ChangeItem {
   grupo: string | null;
   /** Ruta de la web hacia el horario: /grado/<slug>/<path>. */
   href: string;
-  /** Hueco para más detalle en el futuro (líneas de texto libre: «Lunes 9-11 PL A1: cambia de aula»). Hoy no se rellena. */
-  detail?: string[];
+  /** Qué clases cambiaron en concreto. Solo cuando se pudo comparar con el horario anterior. */
+  detail?: ChangeDetail[];
+}
+
+// ---------------- Calendario de exámenes (PDF "Calendario de exámenes AAAA-AA" de cada grado) ----------------
+
+export type ExamType = "teoria" | "practicas" | "teoria_practicas" | "problemas" | "examen" | null;
+
+/** Un examen ya cruzado contra la leyenda de asignaturas del grado (ver `server/src/pipeline/exams.ts`). */
+export interface ExamEntry {
+  curso: number;
+  semestre: 1 | 2;
+  /** Texto tal como viene en el PDF (puede venir abreviado o partido si el nombre no cupo en la celda). */
+  subjectRaw: string;
+  /** Acrónimo de la asignatura en el horario del mismo grado, si se pudo reconocer; null si no hubo match. */
+  subjectAcronym: string | null;
+  tipo: ExamType;
+  /** dd/mm/aaaa */
+  date: string;
+  /** HH:MM, hora de Madrid. */
+  hourStart: string;
+  /** Aula(s) tal cual se pudo extraer; null si el PDF aún no las trae (curso publicado con antelación) o no se reconocieron. */
+  location: string | null;
+  /** Etiqueta de la convocatoria tal como aparece en el PDF, p.ej. "diciembre-enero 2025/26", "mayo 2026". */
+  convocatoria: string | null;
+}
+
+/** Lo que se publica en `public/exams/<id>.json`. */
+export interface ExamData {
+  /** "2026-2027" */
+  academicYear: string;
+  exams: ExamEntry[];
+  warnings: string[];
 }
 
 /** Un grado cuyo curso académico cambió (p.ej. de 2026-2027 a 2027-2028). Sus PDF no se listan uno a uno en `items`. */

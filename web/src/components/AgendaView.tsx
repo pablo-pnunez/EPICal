@@ -59,6 +59,9 @@ export function AgendaView({ events }: { events: CalEvent[] }) {
         <button type="button" className="secondary icon-button" onClick={() => setIdx((i) => Math.min(months.length - 1, i + 1))} disabled={idx >= months.length - 1} aria-label="Mes siguiente">
           <ChevronRight size={18} aria-hidden />
         </button>
+        <button type="button" className="btn-today" disabled={idx === initial} onClick={() => setIdx(initial)}>
+          Hoy
+        </button>
       </div>
 
       {days.map(([date, evs]) => (
@@ -73,6 +76,20 @@ export function AgendaView({ events }: { events: CalEvent[] }) {
                   <div key={i} className="agenda__item agenda__item--holiday">
                     <span className="agenda__time">Todo el día</span>
                     <span className="agenda__title">{ev.summary}</span>
+                  </div>
+                );
+              }
+              if (ev.kind === "examen") {
+                return (
+                  <div key={i} className="agenda__item agenda__item--exam">
+                    <span className="agenda__time">
+                      {TIME_FMT.format(ev.start)}
+                      <small>{TIME_FMT.format(ev.end)}</small>
+                    </span>
+                    <span className="agenda__body">
+                      <span className="agenda__title">{ev.summary}</span>
+                      {ev.location && <span className="agenda__meta">{ev.location}</span>}
+                    </span>
                   </div>
                 );
               }

@@ -17,6 +17,8 @@ const SPLIT_OPTIONS: Array<[SplitMode, string]> = [
 interface Props {
   classes: CalEvent[];
   holidays: CalEvent[];
+  /** Exámenes de las asignaturas elegidas (fecha ya resuelta, ver `lib/events.ts#examEntryToEvent`). */
+  exams?: CalEvent[];
   /** Nombre base de los ficheros. */
   baseName: string;
   /** Identificador estable del origen (para los UID del .ics). */
@@ -25,8 +27,9 @@ interface Props {
   disabledReason: string | null;
 }
 
-export function ExportPanel({ classes, holidays, baseName, source, nameOf, disabledReason }: Props) {
+export function ExportPanel({ classes, holidays, exams = [], baseName, source, nameOf, disabledReason }: Props) {
   const [includeHolidays, setIncludeHolidays] = useState(false);
+  const [includeExams, setIncludeExams] = useState(true);
   const [split, setSplit] = useState<SplitMode>("none");
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
@@ -50,9 +53,10 @@ export function ExportPanel({ classes, holidays, baseName, source, nameOf, disab
   function buildFiles(): Array<{ name: string; content: string }> {
     const files: Array<{ name: string; content: string }> = [];
     const make = (name: string, events: CalEvent[]) => files.push({ name: `${safeFilename(name)}.ics`, content: toIcs(events, { name, source: `${source}|${name}` }) });
-    const withHolidays = (events: CalEvent[]) => (includeHolidays ? [...events, ...holidays].sort((a, b) => a.start.getTime() - b.start.getTime()) : events);
+    const extra = [...(includeHolidays ? holidays : []), ...(includeExams ? exams : [])];
+    const withExtra = (events: CalEvent[]) => (extra.length > 0 ? [...events, ...extra].sort((a, b) => a.start.getTime() - b.start.getTime()) : events);
 
-    if (split === "none") make(baseName, withHolidays(classes));
+    if (split === "none") make(baseName, withExtra(classes));
     else {
       const keyOf = (e: CalEvent) => (split === "subject" ? nameOf(e.subject) : split === "activity" ? ACTIVITY_LABEL[activityOf(e.group)] : `${nameOf(e.subject)} - ${e.group}`);
       const groups = new Map<string, CalEvent[]>();
@@ -63,6 +67,7 @@ export function ExportPanel({ classes, holidays, baseName, source, nameOf, disab
       }
       for (const [k, evs] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], "es", { numeric: true }))) make(k, evs);
       if (includeHolidays && holidays.length > 0) make("Festivos", holidays);
+      if (includeExams && exams.length > 0) make("Exámenes", exams);
     }
     return files;
   }
@@ -85,7 +90,7 @@ export function ExportPanel({ classes, holidays, baseName, source, nameOf, disab
   }
 
   const disabled = disabledReason !== null || classes.length === 0;
-  const customized = includeHolidays || split !== "none";
+  const customized = includeHolidays || !includeExams || split !== "none";
 
   return (
     <div className="export-bar">
@@ -103,6 +108,12 @@ export function ExportPanel({ classes, holidays, baseName, source, nameOf, disab
               <input type="checkbox" checked={includeHolidays} onChange={(e) => setIncludeHolidays(e.target.checked)} />
               Incluir festivos
             </label>
+            {exams.length > 0 && (
+              <label className="check">
+                <input type="checkbox" checked={includeExams} onChange={(e) => setIncludeExams(e.target.checked)} />
+                Incluir exámenes
+              </label>
+            )}
             <fieldset className="popover__group">
               <legend>Generar</legend>
               {SPLIT_OPTIONS.map(([value, label]) => (
@@ -122,7 +133,7 @@ export function ExportPanel({ classes, holidays, baseName, source, nameOf, disab
         {copied && <span className="icon-button__label">Copiado</span>}
       </button>
 
-      <span className="muted export-bar__count">{disabledReason ?? `${classes.length + (includeHolidays ? holidays.length : 0)} eventos`}</span>
+      <span className="muted export-bar__count">{disabledReason ?? `${classes.length + (includeHolidays ? holidays.length : 0) + (includeExams ? exams.length : 0)} eventos`}</span>
     </div>
   );
 }

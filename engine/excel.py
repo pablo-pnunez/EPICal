@@ -52,8 +52,46 @@ def _add_conditional_formatting(sheet, formula, fill_color):
     sheet.conditional_formatting.add("A1:Z1000", rule)
 
 
-def create_subject_excel(subject_events, subject_name, holiday, min_h=None, max_h=None):
-    """`subject_events`: eventos ya expandidos de `schedule.py#subject_to_events` (misma entrada que `to_ical`). Devuelve los bytes del .xlsx."""
+TIPO_LABEL = {
+    "teoria": "Teoría",
+    "practicas": "Prácticas",
+    "teoria_practicas": "Teoría y prácticas",
+    "problemas": "Problemas",
+}
+
+
+def _add_exams_sheet(wb, exams):
+    """Hoja "Exámenes": lista plana (fecha, hora, tipo, aula, convocatoria), igual trato que la hoja "Eventos".
+    Las fechas de examen caen fuera del cuatrimestre (son posteriores a sus clases), así que no encajan en la
+    rejilla semana-a-semana de la hoja "Horario": van aparte, en vez de forzarlas en una rejilla pensada para otra cosa."""
+    ws = wb.create_sheet(title="Exámenes")
+    header_font = Font(bold=True)
+    header_fill = PatternFill(start_color="C0C0C0", end_color="C0C0C0", fill_type="solid")
+    columns = ["Fecha", "Hora", "Tipo", "Aula", "Convocatoria"]
+    for c_idx, header in enumerate(columns, 1):
+        cell = ws.cell(row=2, column=c_idx + 1, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+
+    rows = sorted(exams, key=lambda e: (e["date"][6:], e["date"][3:5], e["date"][:2], e["hourStart"]))
+    for r_idx, e in enumerate(rows, 3):
+        values = [e["date"], f"{e['hourStart']}h", TIPO_LABEL.get(e.get("tipo"), ""), e.get("location") or "", e.get("convocatoria") or ""]
+        for c_idx, value in enumerate(values, 2):
+            ws.cell(row=r_idx, column=c_idx, value=value)
+
+    thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    for row in ws.iter_rows(min_row=2, max_row=len(rows) + 2, min_col=2, max_col=len(columns) + 1):
+        for cell in row:
+            cell.border = thin_border
+            cell.alignment = Alignment(horizontal="center")
+    ws.column_dimensions["C"].width = 11
+    ws.column_dimensions["D"].width = 16
+    ws.column_dimensions["E"].width = 20
+    ws.column_dimensions["F"].width = 22
+
+
+def create_subject_excel(subject_events, subject_name, holiday, exams=None, min_h=None, max_h=None):
+    """`subject_events`: eventos ya expandidos de `schedule.py#subject_to_events` (misma entrada que `to_ical`). `exams`: ExamEntry[] de esta asignatura (opcional, ver `generate_excel.py`). Devuelve los bytes del .xlsx."""
     data, subject_calendar = print_subject(subject_events, column="group", min_h=min_h, max_h=max_h, weekend=False)
 
     fmg = 1  # filas de margen al inicio
@@ -148,6 +186,9 @@ def create_subject_excel(subject_events, subject_name, holiday, min_h=None, max_
             cell.alignment = Alignment(horizontal="center")
 
     ws_events.column_dimensions["C"].width = 11
+
+    if exams:
+        _add_exams_sheet(wb, exams)
 
     result = BytesIO()
     wb.save(result)

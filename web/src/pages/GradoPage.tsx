@@ -1,11 +1,39 @@
 import { ExternalLink, FileText } from "lucide-react";
-import { useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { AgendaView } from "../components/AgendaView";
+import { CalendarMonthView } from "../components/CalendarMonthView";
 import { EnglishMark } from "../components/EnglishMark";
 import { ErrorBox, Loading } from "../components/Status";
-import { getCatalog, useAsync } from "../lib/api";
+import { getCatalog, getExamData, useAsync } from "../lib/api";
 import { pdfHref, shortCurso } from "../lib/catalog";
-import type { CatalogPdf, CatalogSemestre } from "../types";
+import { examEntryToEvent } from "../lib/events";
+import type { CatalogExamPdf, CatalogGrado, CatalogPdf, CatalogSemestre, ExamEntry } from "../types";
+
+const CURSO_ORDINAL = ["", "1º", "2º", "3º", "4º", "5º", "6º"];
+
+const TIPO_LABEL: Record<string, string> = {
+  teoria: "Teoría",
+  practicas: "Prácticas",
+  teoria_practicas: "Teoría y prácticas",
+  problemas: "Problemas",
+};
+
+/** dd/mm/aaaa -> aaaa-mm-dd, para ordenar y para comparar fechas como texto. */
+function dateKey(ddmmaaaa: string): string {
+  const [d, m, y] = ddmmaaaa.split("/");
+  return `${y}-${m}-${d}`;
+}
+
+function useExamsData(grado: CatalogGrado | undefined) {
+  const ok = (grado?.examenesParsed ?? []).filter((e) => e.status === "ok");
+  const key = ok.map((e) => e.id).join(",");
+  return useAsync(async () => {
+    const data = await Promise.all(ok.map(async (e) => ({ pdf: e, data: await getExamData(e.id) })));
+    return data;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+}
 
 /** "Semestre 1 (Mañanas*)" -> etiqueta «Semestre 1» y turno «Mañanas*». Los textos que no encajan se muestran tal cual. */
 function parseSemestre(texto: string): { label: string; turno: string | null } {
@@ -14,10 +42,18 @@ function parseSemestre(texto: string): { label: string; turno: string | null } {
   return m ? { label: `Semestre ${m[1]}`, turno } : { label: texto, turno: null };
 }
 
+type GradoTab = "horarios" | "examenes";
+const GRADO_TABS: Array<[GradoTab, string]> = [
+  ["horarios", "Horarios"],
+  ["examenes", "Calendario de exámenes"],
+];
+
 export function GradoPage() {
   const { slug } = useParams();
+  const [sp, setSp] = useSearchParams();
   const catalog = useAsync(getCatalog, []);
   const grado = catalog.data?.grados.find((g) => g.slug === slug);
+  const exams = useExamsData(grado);
 
   useEffect(() => {
     if (!grado) return;
@@ -39,6 +75,18 @@ export function GradoPage() {
   }
 
   const total = grado.cursos.reduce((n, c) => n + c.semestres.reduce((m, s) => m + s.grupos.length, 0), 0);
+  const tabParam = sp.get("tab");
+  const tab: GradoTab = tabParam === "examenes" ? "examenes" : "horarios";
+  const setTab = (t: GradoTab) =>
+    setSp(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (t === "horarios") p.delete("tab");
+        else p.set("tab", t);
+        return p;
+      },
+      { replace: true }
+    );
 
   return (
     <div>
@@ -53,47 +101,258 @@ export function GradoPage() {
         </div>
       </div>
 
-      <div className="grado-layout">
-        <section className="curso-grid" aria-label="Horarios por curso y semestre">
-          {grado.cursos.map((curso) => (
-            <article key={curso.curso} className="curso-card">
-              <header className="curso-card__head">
-                <span className="curso-card__num">{shortCurso(curso.curso)}</span>
-                <h2 className="curso-card__name">{curso.curso}</h2>
-              </header>
-              <CursoMatriz grado={grado} semestres={curso.semestres} />
-            </article>
-          ))}
-        </section>
+      <div className="tabs" role="tablist">
+        {GRADO_TABS.map(([t, label]) => (
+          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>
+            {label}
+          </button>
+        ))}
+      </div>
 
-        <aside className="grado-aside">
-          <div className="panel">
-            <h2>En la web de la EPI</h2>
-            <p className="muted aside-text">Ficha del grado, plan de estudios y más información.</p>
-            <a href={grado.url} target="_blank" rel="noreferrer" className="aside-link">
-              Abrir la ficha del grado <ExternalLink size={13} aria-hidden />
-            </a>
-          </div>
+      {tab === "horarios" ? (
+        <div className="grado-layout">
+          <section className="curso-grid" aria-label="Horarios por curso y semestre">
+            {grado.cursos.map((curso) => (
+              <article key={curso.curso} className="curso-card">
+                <header className="curso-card__head">
+                  <span className="curso-card__num">{shortCurso(curso.curso)}</span>
+                  <h2 className="curso-card__name">{curso.curso}</h2>
+                </header>
+                <CursoMatriz grado={grado} semestres={curso.semestres} />
+              </article>
+            ))}
+          </section>
 
-          {grado.examenes.length > 0 && (
+          <aside className="grado-aside">
             <div className="panel">
-              <h2>Calendarios de exámenes</h2>
-              <p className="muted aside-text">PDF oficiales, tal cual los publica la escuela.</p>
-              <ul className="doc-list">
-                {grado.examenes.map((e) => (
-                  <li key={e.url}>
-                    <a href={e.url} target="_blank" rel="noreferrer">
-                      <FileText size={15} aria-hidden />
-                      <span>{e.descripcion}</span>
-                      <ExternalLink size={12} aria-hidden />
-                    </a>
-                  </li>
+              <h2>En la web de la EPI</h2>
+              <p className="muted aside-text">Ficha del grado, plan de estudios y más información.</p>
+              <a href={grado.url} target="_blank" rel="noreferrer" className="aside-link">
+                Abrir la ficha del grado <ExternalLink size={13} aria-hidden />
+              </a>
+            </div>
+          </aside>
+        </div>
+      ) : (
+        <ExamenesTab grado={grado} exams={exams.data} />
+      )}
+    </div>
+  );
+}
+
+/** Enlaces a los PDF de examen que no se procesan (convocatoria extraordinaria adelantada, o fallos de extracción). */
+function ExamenesDocList({ docs }: { docs: { url: string; descripcion: string }[] }) {
+  if (docs.length === 0) return null;
+  return (
+    <ul className="doc-list">
+      {docs.map((e) => (
+        <li key={e.url}>
+          <a href={e.url} target="_blank" rel="noreferrer">
+            <FileText size={15} aria-hidden />
+            <span>{e.descripcion}</span>
+            <ExternalLink size={12} aria-hidden />
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const EXAM_DOC_RE = /^calendario de ex[aá]menes/i;
+type ExamView = "calendario" | "agenda" | "lista";
+const EXAM_VIEWS: Array<[ExamView, string]> = [
+  ["calendario", "Calendario"],
+  ["agenda", "Agenda"],
+  ["lista", "Lista"],
+];
+
+function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: CatalogExamPdf; data: { exams: ExamEntry[] } }[] | null }) {
+  const byYear = useMemo(
+    () => (exams ?? []).slice().sort((a, b) => (b.pdf.academicYear ?? "").localeCompare(a.pdf.academicYear ?? "")),
+    [exams]
+  );
+  const [year, setYear] = useState<string | null>(null);
+  const [curso, setCurso] = useState<number | null>(null);
+  const [subject, setSubject] = useState("");
+  const [view, setView] = useState<ExamView>("calendario");
+
+  // Por defecto, el curso académico más reciente (el último de `byYear`, ya ordenado de más a menos reciente).
+  const selectedYear = year && byYear.some((y) => y.pdf.academicYear === year) ? year : (byYear[0]?.pdf.academicYear ?? null);
+  const current = byYear.find((y) => y.pdf.academicYear === selectedYear) ?? null;
+  const allExams = current?.data.exams ?? [];
+  // El PDF oficial del curso elegido, por si se quiere comprobar una fecha contra el original.
+  const currentUrl = current ? grado.examenes.find((d) => d.descripcion === current.pdf.descripcion)?.url : undefined;
+
+  const cursos = useMemo(() => [...new Set(allExams.map((e) => e.curso))].sort((a, b) => a - b), [allExams]);
+  // La lista de asignaturas depende del curso elegido (si hay uno): no tiene sentido ofrecer una
+  // asignatura de otro curso que luego no va a aparecer en ningún sitio.
+  const subjects = useMemo(
+    () => [...new Set(allExams.filter((e) => curso === null || e.curso === curso).map((e) => e.subjectRaw))].sort((a, b) => a.localeCompare(b, "es")),
+    [allExams, curso]
+  );
+  // Si al cambiar de curso la asignatura elegida deja de existir en él, se trata como "todas" (el <select> no se queda pegado a un valor fantasma).
+  const selectedSubject = subjects.includes(subject) ? subject : "";
+  const filtered = useMemo(
+    () =>
+      allExams
+        .filter((e) => curso === null || e.curso === curso)
+        .filter((e) => !selectedSubject || e.subjectRaw === selectedSubject)
+        .sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)) || a.hourStart.localeCompare(b.hourStart)),
+    [allExams, curso, selectedSubject]
+  );
+  const calEvents = useMemo(() => filtered.map((e) => examEntryToEvent(e, `${CURSO_ORDINAL[e.curso] ?? e.curso} · ${e.subjectRaw}`)), [filtered]);
+  const porConvocatoria = useMemo(() => groupByConvocatoria(filtered), [filtered]);
+
+  const parsedDescs = new Set(grado.examenesParsed.map((e) => e.descripcion));
+  // Documentos que ni siquiera se intentan procesar (p.ej. la convocatoria extraordinaria adelantada): se enlazan tal cual.
+  const sinProcesar = grado.examenes.filter((e) => !EXAM_DOC_RE.test(e.descripcion) || !parsedDescs.has(e.descripcion));
+  const conError = grado.examenesParsed.filter((e) => e.status === "error");
+  const docsConError = conError.map((e) => grado.examenes.find((d) => d.descripcion === e.descripcion)).filter((d): d is NonNullable<typeof d> => !!d);
+
+  if (exams === null) return <p className="muted">Cargando fechas…</p>;
+  if (byYear.length === 0) {
+    return (
+      <div className="panel">
+        <p className="muted aside-text">No se han podido extraer fechas de examen de este grado. PDF oficiales, tal cual los publica la escuela.</p>
+        <ExamenesDocList docs={[...docsConError, ...sinProcesar]} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="schedule">
+      <aside className="schedule__side">
+        <div className="panel">
+          <h2>Filtrar</h2>
+          {byYear.length > 1 && (
+            <div>
+              <label htmlFor="exam-year">Curso académico</label>
+              <select id="exam-year" value={selectedYear ?? ""} onChange={(e) => setYear(e.target.value)}>
+                {byYear.map(({ pdf }) => (
+                  <option key={pdf.id} value={pdf.academicYear ?? ""}>
+                    {pdf.academicYear ?? pdf.descripcion}
+                  </option>
                 ))}
-              </ul>
+              </select>
             </div>
           )}
-        </aside>
-      </div>
+          <div style={{ marginTop: "0.6rem" }}>
+            <label htmlFor="exam-curso">Curso</label>
+            <select id="exam-curso" value={curso ?? ""} onChange={(e) => setCurso(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">Todos</option>
+              {cursos.map((c) => (
+                <option key={c} value={c}>
+                  {CURSO_ORDINAL[c] ?? c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ marginTop: "0.6rem" }}>
+            <label htmlFor="exam-subject">Asignatura</label>
+            <select id="exam-subject" value={selectedSubject} onChange={(e) => setSubject(e.target.value)}>
+              <option value="">Todas las asignaturas</option>
+              {subjects.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="panel">
+          <h2>PDF oficiales</h2>
+          <p className="muted aside-text">Tal cual los publica la escuela, por si se quiere comprobar una fecha contra el original.</p>
+          {conError.length > 0 && <p className="muted aside-text">No se pudieron extraer fechas de: {conError.map((e) => e.descripcion).join(", ")}.</p>}
+          <ExamenesDocList docs={[...(currentUrl ? [{ url: currentUrl, descripcion: current?.pdf.academicYear ?? current?.pdf.descripcion ?? "" }] : []), ...docsConError, ...sinProcesar]} />
+        </div>
+      </aside>
+
+      <section className="schedule__main">
+        <div className="panel">
+          <div className="tabs" role="tablist">
+            {EXAM_VIEWS.map(([v, label]) => (
+              <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "active" : ""} onClick={() => setView(v)}>
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {filtered.length === 0 ? (
+            <p className="muted">Ningún examen coincide con el filtro.</p>
+          ) : view === "calendario" ? (
+            <CalendarMonthView events={calEvents} />
+          ) : view === "agenda" ? (
+            <AgendaView events={calEvents} />
+          ) : (
+            <ExamFlatList porConvocatoria={porConvocatoria} />
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/** "mayo 2026" -> "Mayo 2026" (solo la primera letra, el resto tal cual lo trae el PDF). */
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * Agrupa por convocatoria (tal como la nombra el propio PDF, p.ej. "diciembre-enero 2025/26",
+ * "mayo 2026"), en orden cronológico, y dentro de cada una por fecha: así se ve de un vistazo qué
+ * exámenes caen en cada convocatoria, que es como el alumnado piensa el calendario (ver la
+ * cabecera "Convocatorias" de la EPI), no solo por orden de fecha suelto.
+ */
+function groupByConvocatoria(entries: ExamEntry[]): [string, [string, ExamEntry[]][]][] {
+  const byConv = new Map<string, ExamEntry[]>();
+  for (const e of entries) {
+    const key = e.convocatoria ?? "Sin convocatoria";
+    const list = byConv.get(key) ?? [];
+    list.push(e);
+    byConv.set(key, list);
+  }
+  const groups = [...byConv.entries()].map(([conv, items]) => {
+    const sorted = items.slice().sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)) || a.hourStart.localeCompare(b.hourStart));
+    const porFecha = new Map<string, ExamEntry[]>();
+    for (const e of sorted) {
+      const list = porFecha.get(e.date) ?? [];
+      list.push(e);
+      porFecha.set(e.date, list);
+    }
+    return { conv, minDate: dateKey(sorted[0]!.date), porFecha: [...porFecha.entries()] as [string, ExamEntry[]][] };
+  });
+  groups.sort((a, b) => a.minDate.localeCompare(b.minDate));
+  return groups.map((g): [string, [string, ExamEntry[]][]] => [g.conv, g.porFecha]);
+}
+
+/** Todos los exámenes filtrados, agrupados por convocatoria y luego por fecha, sin paginar por mes: para repasar el curso entero de un vistazo. */
+function ExamFlatList({ porConvocatoria }: { porConvocatoria: [string, [string, ExamEntry[]][]][] }) {
+  return (
+    <div className="exam-convocatorias">
+      {porConvocatoria.map(([conv, porFecha]) => (
+        <section key={conv} className="exam-convocatoria">
+          <h3 className="exam-convocatoria__title">{capitalize(conv)}</h3>
+          <ul className="exam-list">
+            {porFecha.map(([date, items]) => (
+              <li key={date} className="exam-day">
+                <span className="exam-day__date">{date}</span>
+                <ul>
+                  {items.map((e, i) => (
+                    <li key={i} className="exam-entry">
+                      <span className="badge badge--accent">{CURSO_ORDINAL[e.curso] ?? e.curso}</span>
+                      <span className="exam-entry__subject">{e.subjectRaw}</span>
+                      {e.tipo && TIPO_LABEL[e.tipo] && <span className="badge">{TIPO_LABEL[e.tipo]}</span>}
+                      <span className="muted">{e.hourStart}h</span>
+                      {e.location && <span className="muted">{e.location}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }

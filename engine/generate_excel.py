@@ -11,7 +11,8 @@ Petición:
   "academicYear": "2026-2027",
   "subjectName": "SIS_INTELIG",   // acrónimo tal cual aparece en rows[].subject
   "displayName": "Sistemas Inteligentes",  // opcional, título del fichero
-  "groups": ["A", "PL1"]      // opcional; vacío = todos
+  "groups": ["A", "PL1"],     // opcional; vacío = todos
+  "exams": [...]              // opcional: ExamEntry[] ya filtrados para esta asignatura (ver server/src/excel.ts)
 }
 Salida (stdout): {"filename": "...", "contentBase64": "..."} o {"error": "..."} con exit code 1.
 """
@@ -87,7 +88,7 @@ def main() -> int:
 
     title = payload.get("displayName") or subject_name
     try:
-        xlsx = create_subject_excel(events, subject_name=title, holiday=HOLIDAY)
+        xlsx = create_subject_excel(events, subject_name=title, holiday=HOLIDAY, exams=payload.get("exams"))
     except Exception as e:
         return fail(f"No se pudo generar el Excel: {e}")
 

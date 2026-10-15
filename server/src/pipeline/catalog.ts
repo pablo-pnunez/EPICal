@@ -62,6 +62,7 @@ export function buildCatalog(grados: Grado[], horarios: Map<string, ScrapedHorar
         })),
       })),
       examenes: h.examenes,
+      examenesParsed: [],
     });
   }
   for (const g of out) assignPaths(g);

@@ -1,8 +1,9 @@
-import { CalendarPlus, FilePen, FilePlus } from "lucide-react";
+import { CalendarPlus, ChevronDown, Clock, DoorOpen, FilePen, FilePlus, Minus, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ErrorBox, Loading } from "../components/Status";
 import { getChanges, useAsync } from "../lib/api";
-import type { ChangeEntry, ChangeItem, NewCourse } from "../types";
+import { DAY_LABELS } from "../lib/scheduleGaps";
+import type { ChangeDetail, ChangeDetailKind, ChangeEntry, ChangeItem, NewCourse } from "../types";
 
 const DAY_FMT = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
 const DAY_KEY = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }); // aaaa-mm-dd
@@ -46,6 +47,40 @@ function itemLabel(it: ChangeItem): string {
   return [it.curso, it.semestre, it.grupo ? `grupo ${it.grupo}` : null].filter(Boolean).join(" · ");
 }
 
+const DETAIL_ICON: Record<ChangeDetailKind, typeof Clock> = { removed: Minus, room: DoorOpen, time: Clock, new: Plus };
+
+function detailKey(d: ChangeDetail): string {
+  return [d.kind, d.day, d.hourStart, d.subject, d.group].join("|");
+}
+
+function detailChange(d: ChangeDetail): string {
+  switch (d.kind) {
+    case "removed":
+      return "eliminada";
+    case "room":
+      return `${d.previousRoom} → ${d.room}`;
+    case "time":
+      return `${d.previousHourStart}-${d.previousHourEnd}h → ${d.hourStart}-${d.hourEnd}h${d.previousRoom ? ` · ${d.previousRoom} → ${d.room}` : ""}`;
+    case "new":
+      return `nueva · aula ${d.room}`;
+  }
+}
+
+function DetailRow({ d }: { d: ChangeDetail }) {
+  const Icon = DETAIL_ICON[d.kind];
+  return (
+    <li className="detailrow">
+      <Icon size={14} aria-hidden className={`detailrow__icon detailrow__icon--${d.kind}`} />
+      <span className="muted detailrow__when">
+        {(DAY_LABELS[d.day] ?? "?").slice(0, 3)} {d.hourStart}-{d.hourEnd}h
+      </span>
+      <span className="detailrow__what">{d.subject}</span>
+      {d.group ? <span className="muted">grupo {d.group}</span> : null}
+      <span className="muted detailrow__change">{detailChange(d)}</span>
+    </li>
+  );
+}
+
 function CourseRow({ at, course, grados }: { at: string; course: string; grados: NewCourse[] }) {
   return (
     <li className="changelog__item">
@@ -87,11 +122,17 @@ function ChangeRow({ item, at }: { item: ChangeItem; at: string }) {
           <Link to={item.href}>{itemLabel(item)}</Link>
         </p>
         {item.detail?.length ? (
-          <ul className="changelog__detail">
-            {item.detail.map((d) => (
-              <li key={d}>{d}</li>
-            ))}
-          </ul>
+          <details className="changelog__details">
+            <summary>
+              <ChevronDown size={14} aria-hidden className="changelog__chevron" />
+              Ver {item.detail.length} cambio{item.detail.length === 1 ? "" : "s"} de clase
+            </summary>
+            <ul className="detailrows">
+              {item.detail.map((d) => (
+                <DetailRow key={detailKey(d)} d={d} />
+              ))}
+            </ul>
+          </details>
         ) : null}
         <time className="muted changelog__time" dateTime={at}>
           {TIME_FMT.format(new Date(at))}
@@ -110,7 +151,7 @@ export function ChangesPage() {
         <Link to="/">Inicio</Link> / <span>Cambios</span>
       </nav>
       <h1>Cambios en los horarios</h1>
-      <p className="muted">Cada vez que la EPI publica un PDF distinto del que teníamos, se anota aquí. De momento solo se indica qué horario cambió, no qué clases.</p>
+      <p className="muted">Cada vez que la EPI publica un PDF distinto del que teníamos, se anota aquí, con el detalle de qué clases cambiaron cuando se ha podido determinar.</p>
       {changes.error ? (
         <ErrorBox>{changes.error}</ErrorBox>
       ) : !changes.data ? (

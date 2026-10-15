@@ -15,6 +15,10 @@ export const paths = {
   subjectIndex: path.join(config.dataDir, "public", "subjects-index.json"),
   pdfFile: (id: string) => path.join(config.dataDir, "pdf", `${id}.pdf`),
   scheduleFile: (id: string) => path.join(config.dataDir, "public", "schedules", `${id}.json`),
+  examPdfDir: path.join(config.dataDir, "exam-pdf"),
+  examDir: path.join(config.dataDir, "public", "exams"),
+  examPdfFile: (id: string) => path.join(config.dataDir, "exam-pdf", `${id}.pdf`),
+  examFile: (id: string) => path.join(config.dataDir, "public", "exams", `${id}.json`),
 };
 
 /** Los ids salen de la URL del PDF (uuid de Liferay) o de un hash; nunca se aceptan otros caracteres (evita path traversal). */

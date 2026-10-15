@@ -10,19 +10,27 @@ export interface ParseItem {
   id: string;
   pdf: string;
   out: string;
-  cuatrimestreHint: 1 | 2 | null;
+  kind?: "horario" | "exam";
+  /** Solo "horario". */
+  cuatrimestreHint?: 1 | 2 | null;
+  /** Solo "exam": año académico de referencia ("2026-2027") si el PDF no trae título legible. */
+  academicYearHint?: string | null;
 }
 
 export interface ParseResult {
   id: string;
   ok: boolean;
   error?: string;
+  // ---- "horario" ----
   cuatrimestre?: 1 | 2;
   subjects?: number;
   rows?: number;
-  warnings?: string[];
   calendar?: CalendarData | null;
   calendarError?: string | null;
+  // ---- "exam" ----
+  exams?: number;
+  // ---- comunes ----
+  warnings?: string[];
 }
 
 export function runPython(script: string, args: string[], env: Record<string, string> = {}, timeoutMs = 15 * 60_000): Promise<{ stdout: string; stderr: string; code: number }> {

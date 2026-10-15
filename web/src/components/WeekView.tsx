@@ -95,6 +95,9 @@ export function WeekView({ classes, holidays }: { classes: CalEvent[]; holidays:
         <button type="button" className="secondary" onClick={() => setIdx((i) => Math.min(weeks.length - 1, i + 1))} disabled={idx >= weeks.length - 1} aria-label="Semana siguiente">
           <ChevronRight size={16} aria-hidden />
         </button>
+        <button type="button" className="btn-today" disabled={idx === initial} onClick={() => setIdx(initial)}>
+          Hoy
+        </button>
       </div>
       <p className="muted week__range">
         Semana {weekNo} del curso: {DATE_FMT.format(week.monday)} – {DATE_FMT.format(sunday)}

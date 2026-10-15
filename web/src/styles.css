@@ -133,6 +133,24 @@ button.secondary {
   color: var(--text);
   border-color: var(--border);
 }
+
+/* Botón "Hoy" de las vistas de calendario: discreto, no compite con Anterior/Siguiente. */
+button.btn-today {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  padding: 0.3rem 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+button.btn-today:hover:not(:disabled) {
+  text-decoration: underline;
+}
+button.btn-today:disabled {
+  color: var(--muted);
+  opacity: 1;
+  cursor: default;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -163,9 +181,13 @@ tbody tr:hover {
 .calendar-month__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+}
+
+.calendar-month__header strong {
+  flex: 1;
+  text-align: center;
 }
 
 .calendar-month__weekdays {

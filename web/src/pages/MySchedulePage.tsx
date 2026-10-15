@@ -8,12 +8,12 @@ import { HoursSummary } from "../components/HoursSummary";
 import { ErrorBox, Loading } from "../components/Status";
 import { groupsByActivity } from "../components/SubjectPicker";
 import { WeekView } from "../components/WeekView";
-import { getAcademicCalendar, getCatalog, getSchedule, getSubjectIndex, useAsync } from "../lib/api";
+import { getAcademicCalendar, getCatalog, getExamData, getSchedule, getSubjectIndex, useAsync } from "../lib/api";
 import { findByPath, fold, indexPdfs, pdfTitle, type PdfLocation } from "../lib/catalog";
-import { ACTIVITY_LABEL, buildEvents, isCourseCalendar, isEnglishGroup, type CalEvent } from "../lib/events";
+import { ACTIVITY_LABEL, buildEvents, examEntryToEvent, isCourseCalendar, isEnglishGroup, type CalEvent } from "../lib/events";
 import { loadStoredMine, mergeEntries, mineSearch, parseMine, pdfKey, saveStoredMine, type MyEntry } from "../lib/myschedule";
 import { normalizeAcronym, sortGroups } from "../lib/selection";
-import type { Catalog, ParsedSchedule } from "../types";
+import type { Catalog, ExamData, ParsedSchedule } from "../types";
 
 type Tab = "agenda" | "calendario" | "semana" | "resumen";
 const TABS: Array<[Tab, string]> = [
@@ -84,6 +84,21 @@ function MyScheduleView({ catalog }: { catalog: Catalog }) {
     () =>
       Promise.all(ids.map((id) => getSchedule(id).catch(() => null))).then((list) => new Map(ids.map((id, i) => [id, list[i] ?? null] as const))),
     [ids.join("|")]
+  );
+
+  // Fechas de examen de los grados presentes en la selección (un PDF de exámenes por grado y curso académico).
+  const gradoSlugs = useMemo(() => [...new Set(locs.filter((l): l is PdfLocation => !!l).map((l) => l.grado.slug))].sort(), [locs]);
+  const examData = useAsync(
+    () =>
+      Promise.all(
+        gradoSlugs.map(async (slug) => {
+          const grado = catalog.grados.find((g) => g.slug === slug);
+          const okIds = grado?.examenesParsed.filter((e) => e.status === "ok").map((e) => e.id) ?? [];
+          const datas = await Promise.all(okIds.map((id) => getExamData(id).catch(() => null)));
+          return [slug, datas.filter((d): d is ExamData => !!d)] as const;
+        })
+      ).then((entries) => new Map(entries)),
+    [gradoSlugs.join("|")]
   );
 
   const resolved = useMemo<Resolved[]>(
@@ -157,10 +172,24 @@ function MyScheduleView({ catalog }: { catalog: Catalog }) {
       }
     }
     const byStart = (a: CalEvent, b: CalEvent) => a.start.getTime() - b.start.getTime() || a.summary.localeCompare(b.summary);
-    return { classes: [...classes.values()].sort(byStart), holidays: [...holidays.values()].sort(byStart), error };
-  }, [resolved, calendar.data]);
 
-  const monthEvents = useMemo(() => [...built.classes, ...built.holidays].sort((a, b) => a.start.getTime() - b.start.getTime()), [built]);
+    // Exámenes: una entrada por asignatura elegida que tenga acrónimo reconocido en algún PDF de exámenes de su grado.
+    const exams = new Map<string, CalEvent>();
+    for (const r of resolved) {
+      if (!r.loc) continue;
+      for (const data of examData.data?.get(r.loc.grado.slug) ?? []) {
+        for (const e of data.exams) {
+          if (e.subjectAcronym !== r.entry.subject) continue;
+          const ev = examEntryToEvent(e, r.name);
+          exams.set(`${ev.summary}|${ev.start.getTime()}`, ev);
+        }
+      }
+    }
+
+    return { classes: [...classes.values()].sort(byStart), holidays: [...holidays.values()].sort(byStart), exams: [...exams.values()].sort(byStart), error };
+  }, [resolved, calendar.data, examData.data]);
+
+  const monthEvents = useMemo(() => [...built.classes, ...built.holidays, ...built.exams].sort((a, b) => a.start.getTime() - b.start.getTime()), [built]);
 
   // ---- Pestañas ----
   const [narrow] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 700px)").matches);
@@ -334,7 +363,7 @@ function MyScheduleView({ catalog }: { catalog: Catalog }) {
 
         <section className="schedule__main" id="schedule-results">
           <div className="toolbar">
-            <ExportPanel classes={built.classes} holidays={built.holidays} baseName="Mi horario" source="mi-horario" nameOf={nameOf} disabledReason={disabledReason} />
+            <ExportPanel classes={built.classes} holidays={built.holidays} exams={built.exams} baseName="Mi horario" source="mi-horario" nameOf={nameOf} disabledReason={disabledReason} />
           </div>
 
           <div className="panel">
