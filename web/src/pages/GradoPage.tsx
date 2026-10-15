@@ -8,7 +8,7 @@ import { ErrorBox, Loading } from "../components/Status";
 import { getCatalog, getExamData, useAsync } from "../lib/api";
 import { pdfHref, shortCurso } from "../lib/catalog";
 import { examEntryToEvent } from "../lib/events";
-import type { CatalogExamPdf, CatalogGrado, CatalogPdf, CatalogSemestre, ExamEntry } from "../types";
+import type { CatalogExamPdf, CatalogGrado, CatalogPdf, CatalogSemestre, ExamData, ExamEntry } from "../types";
 
 const CURSO_ORDINAL = ["", "1º", "2º", "3º", "4º", "5º", "6º"];
 
@@ -29,8 +29,10 @@ function useExamsData(grado: CatalogGrado | undefined) {
   const ok = (grado?.examenesParsed ?? []).filter((e) => e.status === "ok");
   const key = ok.map((e) => e.id).join(",");
   return useAsync(async () => {
-    const data = await Promise.all(ok.map(async (e) => ({ pdf: e, data: await getExamData(e.id) })));
-    return data;
+    // Un solo PDF inalcanzable (404, aún no regenerado tras una actualización...) no debe dejar
+    // la pestaña entera colgada "Cargando…": se ignora ese PDF y se muestran los demás.
+    const all = await Promise.all(ok.map(async (e) => ({ pdf: e, data: await getExamData(e.id).catch(() => null) })));
+    return all.filter((x): x is { pdf: CatalogExamPdf; data: ExamData } => x.data !== null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 }
@@ -203,10 +205,14 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
   const calEvents = useMemo(() => filtered.map((e) => examEntryToEvent(e, `${CURSO_ORDINAL[e.curso] ?? e.curso} · ${e.subjectRaw}`)), [filtered]);
   const porConvocatoria = useMemo(() => groupByConvocatoria(filtered), [filtered]);
 
-  const parsedDescs = new Set(grado.examenesParsed.map((e) => e.descripcion));
+  // `grado.examenesParsed` puede faltar un rato justo tras desplegar una versión nueva, si el
+  // servidor aún no ha vuelto a generar el catálogo con este campo (hasta la próxima actualización
+  // programada): se trata como "todavía sin nada" en vez de romper la página.
+  const examenesParsed = grado.examenesParsed ?? [];
+  const parsedDescs = new Set(examenesParsed.map((e) => e.descripcion));
   // Documentos que ni siquiera se intentan procesar (p.ej. la convocatoria extraordinaria adelantada): se enlazan tal cual.
   const sinProcesar = grado.examenes.filter((e) => !EXAM_DOC_RE.test(e.descripcion) || !parsedDescs.has(e.descripcion));
-  const conError = grado.examenesParsed.filter((e) => e.status === "error");
+  const conError = examenesParsed.filter((e) => e.status === "error");
   const docsConError = conError.map((e) => grado.examenes.find((d) => d.descripcion === e.descripcion)).filter((d): d is NonNullable<typeof d> => !!d);
 
   if (exams === null) return <p className="muted">Cargando fechas…</p>;
