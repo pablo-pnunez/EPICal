@@ -220,13 +220,18 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
     [allExams, curso]
   );
   const q = fold(filters.subjectQuery.trim());
+  // Si el texto coincide EXACTO con una asignatura real (se escribió entera o se eligió del
+  // desplegable), se filtra por esa asignatura y sólo esa: una búsqueda parcial por "contiene"
+  // mezclaría "Aprend. Automático I" con "Aprend. Automático II" (el nombre completo del primero
+  // es un prefijo literal del segundo).
+  const exactSubject = q ? subjects.find((s) => fold(s) === q) : undefined;
   const filtered = useMemo(
     () =>
       allExams
         .filter((e) => curso === null || e.curso === curso)
-        .filter((e) => !q || fold(e.subjectRaw).includes(q))
+        .filter((e) => !q || (exactSubject ? e.subjectRaw === exactSubject : fold(e.subjectRaw).includes(q)))
         .sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)) || a.hourStart.localeCompare(b.hourStart)),
-    [allExams, curso, q]
+    [allExams, curso, q, exactSubject]
   );
   const calEvents = useMemo(() => filtered.map((e) => examEntryToEvent(e, `${CURSO_ORDINAL[e.curso] ?? e.curso} · ${e.subjectRaw}`)), [filtered]);
   const porConvocatoria = useMemo(() => groupByConvocatoria(filtered), [filtered]);
