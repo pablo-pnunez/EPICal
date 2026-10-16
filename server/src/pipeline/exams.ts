@@ -12,23 +12,55 @@ function norm(s: string): string {
     .trim();
 }
 
+/** Palabras de un nombre, separando también por puntos aunque no lleven espacio detrás (p.ej. "Rec.Inf." -> ["REC","INF"]). */
+function words(s: string): string[] {
+  return norm(s)
+    .split(/[^A-Z0-9ÑÇ]+/)
+    .filter(Boolean);
+}
+
+/** "PROGR" encaja con "PROGRAMACION" (abreviatura por truncamiento); exigir longitud mínima evita que una palabra de 1-2 letras case con cualquier cosa. */
+function wordMatches(q: string, t: string): boolean {
+  return q === t || (q.length >= 3 && t.startsWith(q));
+}
+
 /**
- * Busca el acrónimo de `subjectRaw` (texto libre del PDF de exámenes, a veces truncado por el
- * ancho de la celda) en la leyenda de asignaturas del grado. Primero igualdad exacta; si no,
- * contención en cualquier sentido (un nombre truncado es prefijo/substring del real) con un
- * mínimo de caracteres para no dar falsos positivos con nombres cortos. Sin match -> null: se
+ * ¿Las palabras de `q` aparecen en `t`, en el mismo orden, permitiendo que `t` tenga palabras de
+ * más en medio (conectores como "de" que el PDF de exámenes a veces omite) y que cada palabra de
+ * `q` sea solo el principio de la de `t` (abreviaturas como "Progr." o "Rec.Inf.")? No al revés:
+ * todas las palabras de la consulta tienen que casar con alguna, nunca sobra ninguna de `q`.
+ */
+function wordsAlign(q: string[], t: string[]): boolean {
+  let ti = 0;
+  for (const qw of q) {
+    let found = false;
+    while (ti < t.length) {
+      ti++;
+      if (wordMatches(qw, t[ti - 1]!)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+  }
+  return true;
+}
+
+/**
+ * Busca el acrónimo de `subjectRaw` (texto libre del PDF de exámenes, a veces abreviado o
+ * truncado por el ancho de la celda, p.ej. "Progr. Avanzada" o "Rec.Inf." por "Recuperación" +
+ * "Información") en la leyenda de asignaturas del grado. Primero igualdad exacta; si no, que las
+ * palabras de `subjectRaw` encajen en orden con las del nombre real (ver `wordsAlign`), con un
+ * mínimo de caracteres para no dar falsos positivos con nombres muy cortos. Sin match -> null: se
  * muestra igual el texto crudo, pero no se podrá filtrar por asignatura.
  */
 function matchSubject(subjectRaw: string, legend: SubjectInfo[]): string | null {
   const q = norm(subjectRaw);
   if (!q) return null;
   for (const s of legend) if (norm(s.name) === q || (s.nameEn && norm(s.nameEn) === q)) return s.acronym;
-  if (q.length < 6) return null; // demasiado corto para contención fiable
-  const candidates = legend.filter((s) => {
-    const n = norm(s.name);
-    const en = s.nameEn ? norm(s.nameEn) : "";
-    return (n.length >= 6 && (n.includes(q) || q.includes(n))) || (en.length >= 6 && (en.includes(q) || q.includes(en)));
-  });
+  if (q.length < 6) return null; // demasiado corto para un casado fiable
+  const qWords = words(subjectRaw);
+  const candidates = legend.filter((s) => wordsAlign(qWords, words(s.name)) || (s.nameEn && wordsAlign(qWords, words(s.nameEn))));
   const uniq = new Set(candidates.map((s) => s.acronym));
   return uniq.size === 1 ? candidates[0]!.acronym : null;
 }
