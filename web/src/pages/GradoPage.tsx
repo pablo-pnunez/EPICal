@@ -1,4 +1,4 @@
-import { ExternalLink, FileText } from "lucide-react";
+import { CalendarPlus, ExternalLink, FileText } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { AgendaView } from "../components/AgendaView";
@@ -7,7 +7,9 @@ import { EnglishMark } from "../components/EnglishMark";
 import { ErrorBox, Loading } from "../components/Status";
 import { getCatalog, getExamData, useAsync } from "../lib/api";
 import { fold, pdfHref, shortCurso } from "../lib/catalog";
+import { downloadBlob, safeFilename } from "../lib/download";
 import { examEntryToEvent } from "../lib/events";
+import { toIcs } from "../lib/ics";
 import type { CatalogExamPdf, CatalogGrado, CatalogPdf, CatalogSemestre, ExamData, ExamEntry } from "../types";
 
 const CURSO_ORDINAL = ["", "1º", "2º", "3º", "4º", "5º", "6º"];
@@ -236,6 +238,20 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
   const calEvents = useMemo(() => filtered.map((e) => examEntryToEvent(e, `${CURSO_ORDINAL[e.curso] ?? e.curso} · ${e.subjectRaw}`)), [filtered]);
   const porConvocatoria = useMemo(() => groupByConvocatoria(filtered), [filtered]);
 
+  // Nombre del calendario para el .ics: el grado y el curso académico, más el filtro activo si lo hay.
+  const icsName = [
+    `Exámenes ${grado.nombre.replace(/^Grado en /i, "")}`,
+    selectedYear,
+    curso ? CURSO_ORDINAL[curso] : null,
+    exactSubject ?? (q ? filters.subjectQuery.trim() : null),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  function downloadIcs() {
+    const ics = toIcs(calEvents, { name: icsName, source: `examenes-${grado.slug}-${selectedYear ?? ""}` });
+    downloadBlob(new Blob([ics], { type: "text/calendar;charset=utf-8" }), `${safeFilename(icsName)}.ics`);
+  }
+
   // `grado.examenesParsed` puede faltar un rato justo tras desplegar una versión nueva, si el
   // servidor aún no ha vuelto a generar el catálogo con este campo (hasta la próxima actualización
   // programada): se trata como "todavía sin nada" en vez de romper la página.
@@ -305,6 +321,17 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
       </aside>
 
       <section className="schedule__main">
+        <div className="toolbar">
+          <div className="export-bar">
+            <button type="button" onClick={downloadIcs} disabled={filtered.length === 0} title={filtered.length === 0 ? "No hay exámenes que descargar con este filtro" : undefined}>
+              <CalendarPlus size={16} aria-hidden /> Descargar .ics
+            </button>
+            <span className="muted export-bar__count">
+              {filtered.length} examen{filtered.length === 1 ? "" : "es"}
+            </span>
+          </div>
+        </div>
+
         <div className="panel">
           <div className="tabs" role="tablist">
             {EXAM_VIEWS.map(([v, label]) => (

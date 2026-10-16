@@ -87,7 +87,9 @@ export function toIcs(events: CalEvent[], opts: IcsOptions): string {
     }
     lines.push(`SUMMARY:${escapeText(ev.summary)}`);
     if (ev.location) lines.push(`LOCATION:${escapeText(ev.location)}`);
-    if (!ev.allDay) lines.push(`DESCRIPTION:${escapeText(`Semana ${ev.week} del curso`)}`);
+    // Un examen no tiene "semana de curso" (su fecha ya es absoluta, ver examEntryToEvent): la
+    // descripción genérica de las clases no aplica y solo confundiría ("Semana 0 del curso").
+    if (!ev.allDay && ev.kind !== "examen") lines.push(`DESCRIPTION:${escapeText(`Semana ${ev.week} del curso`)}`);
     lines.push("END:VEVENT");
   }
   lines.push("END:VCALENDAR");
