@@ -1,12 +1,12 @@
 import { ExternalLink, FileText } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { AgendaView } from "../components/AgendaView";
 import { CalendarMonthView } from "../components/CalendarMonthView";
 import { EnglishMark } from "../components/EnglishMark";
 import { ErrorBox, Loading } from "../components/Status";
 import { getCatalog, getExamData, useAsync } from "../lib/api";
-import { pdfHref, shortCurso } from "../lib/catalog";
+import { fold, pdfHref, shortCurso } from "../lib/catalog";
 import { examEntryToEvent } from "../lib/events";
 import type { CatalogExamPdf, CatalogGrado, CatalogPdf, CatalogSemestre, ExamData, ExamEntry } from "../types";
 
@@ -168,39 +168,65 @@ const EXAM_VIEWS: Array<[ExamView, string]> = [
   ["lista", "Lista"],
 ];
 
+/** Lee/escribe los filtros del calendario de exámenes en la URL (`ac`, `curso`, `asig`, `v`): se pueden compartir o recargar sin perderlos. Cada uno se omite cuando vale lo mismo que por defecto, para no ensuciar la URL. */
+function useExamFilters(defaultYear: string | null) {
+  const [sp, setSp] = useSearchParams();
+
+  const set = (key: string, value: string) =>
+    setSp(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (!value) p.delete(key);
+        else p.set(key, value);
+        return p;
+      },
+      { replace: true }
+    );
+
+  const viewParam = sp.get("v");
+
+  return {
+    year: sp.get("ac") || defaultYear,
+    setYear: (v: string) => set("ac", v === defaultYear ? "" : v),
+    curso: sp.get("curso") ? Number(sp.get("curso")) : null,
+    setCurso: (v: number | null) => set("curso", v ? String(v) : ""),
+    subjectQuery: sp.get("asig") ?? "",
+    setSubjectQuery: (v: string) => set("asig", v),
+    view: (EXAM_VIEWS.some(([v]) => v === viewParam) ? viewParam : "calendario") as ExamView,
+    setView: (v: ExamView) => set("v", v === "calendario" ? "" : v),
+  };
+}
+
 function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: CatalogExamPdf; data: { exams: ExamEntry[] } }[] | null }) {
   const byYear = useMemo(
     () => (exams ?? []).slice().sort((a, b) => (b.pdf.academicYear ?? "").localeCompare(a.pdf.academicYear ?? "")),
     [exams]
   );
-  const [year, setYear] = useState<string | null>(null);
-  const [curso, setCurso] = useState<number | null>(null);
-  const [subject, setSubject] = useState("");
-  const [view, setView] = useState<ExamView>("calendario");
-
-  // Por defecto, el curso académico más reciente (el último de `byYear`, ya ordenado de más a menos reciente).
-  const selectedYear = year && byYear.some((y) => y.pdf.academicYear === year) ? year : (byYear[0]?.pdf.academicYear ?? null);
+  // Por defecto, el curso académico más reciente (el primero de `byYear`, ya ordenado de más a menos reciente).
+  const defaultYear = byYear[0]?.pdf.academicYear ?? null;
+  const filters = useExamFilters(defaultYear);
+  const selectedYear = filters.year && byYear.some((y) => y.pdf.academicYear === filters.year) ? filters.year : defaultYear;
   const current = byYear.find((y) => y.pdf.academicYear === selectedYear) ?? null;
   const allExams = current?.data.exams ?? [];
   // El PDF oficial del curso elegido, por si se quiere comprobar una fecha contra el original.
   const currentUrl = current ? grado.examenes.find((d) => d.descripcion === current.pdf.descripcion)?.url : undefined;
 
   const cursos = useMemo(() => [...new Set(allExams.map((e) => e.curso))].sort((a, b) => a - b), [allExams]);
-  // La lista de asignaturas depende del curso elegido (si hay uno): no tiene sentido ofrecer una
+  const curso = filters.curso !== null && cursos.includes(filters.curso) ? filters.curso : null;
+  // La lista de asignaturas (para el combo) depende del curso elegido: no tiene sentido ofrecer una
   // asignatura de otro curso que luego no va a aparecer en ningún sitio.
   const subjects = useMemo(
     () => [...new Set(allExams.filter((e) => curso === null || e.curso === curso).map((e) => e.subjectRaw))].sort((a, b) => a.localeCompare(b, "es")),
     [allExams, curso]
   );
-  // Si al cambiar de curso la asignatura elegida deja de existir en él, se trata como "todas" (el <select> no se queda pegado a un valor fantasma).
-  const selectedSubject = subjects.includes(subject) ? subject : "";
+  const q = fold(filters.subjectQuery.trim());
   const filtered = useMemo(
     () =>
       allExams
         .filter((e) => curso === null || e.curso === curso)
-        .filter((e) => !selectedSubject || e.subjectRaw === selectedSubject)
+        .filter((e) => !q || fold(e.subjectRaw).includes(q))
         .sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)) || a.hourStart.localeCompare(b.hourStart)),
-    [allExams, curso, selectedSubject]
+    [allExams, curso, q]
   );
   const calEvents = useMemo(() => filtered.map((e) => examEntryToEvent(e, `${CURSO_ORDINAL[e.curso] ?? e.curso} · ${e.subjectRaw}`)), [filtered]);
   const porConvocatoria = useMemo(() => groupByConvocatoria(filtered), [filtered]);
@@ -233,7 +259,7 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
           {byYear.length > 1 && (
             <div>
               <label htmlFor="exam-year">Curso académico</label>
-              <select id="exam-year" value={selectedYear ?? ""} onChange={(e) => setYear(e.target.value)}>
+              <select id="exam-year" value={selectedYear ?? ""} onChange={(e) => filters.setYear(e.target.value)}>
                 {byYear.map(({ pdf }) => (
                   <option key={pdf.id} value={pdf.academicYear ?? ""}>
                     {pdf.academicYear ?? pdf.descripcion}
@@ -244,7 +270,7 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
           )}
           <div style={{ marginTop: "0.6rem" }}>
             <label htmlFor="exam-curso">Curso</label>
-            <select id="exam-curso" value={curso ?? ""} onChange={(e) => setCurso(e.target.value ? Number(e.target.value) : null)}>
+            <select id="exam-curso" value={curso ?? ""} onChange={(e) => filters.setCurso(e.target.value ? Number(e.target.value) : null)}>
               <option value="">Todos</option>
               {cursos.map((c) => (
                 <option key={c} value={c}>
@@ -255,14 +281,13 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
           </div>
           <div style={{ marginTop: "0.6rem" }}>
             <label htmlFor="exam-subject">Asignatura</label>
-            <select id="exam-subject" value={selectedSubject} onChange={(e) => setSubject(e.target.value)}>
-              <option value="">Todas las asignaturas</option>
+            {/* input + datalist: combo con las asignaturas del curso elegido, pero escribiendo se puede buscar por texto parcial (no hace falta que coincida exacto con ninguna de la lista). */}
+            <input id="exam-subject" list="exam-subject-options" type="text" value={filters.subjectQuery} onChange={(e) => filters.setSubjectQuery(e.target.value)} placeholder="Todas las asignaturas" autoComplete="off" />
+            <datalist id="exam-subject-options">
               {subjects.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+                <option key={s} value={s} />
               ))}
-            </select>
+            </datalist>
           </div>
         </div>
 
@@ -278,7 +303,7 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
         <div className="panel">
           <div className="tabs" role="tablist">
             {EXAM_VIEWS.map(([v, label]) => (
-              <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "active" : ""} onClick={() => setView(v)}>
+              <button key={v} type="button" role="tab" aria-selected={filters.view === v} className={filters.view === v ? "active" : ""} onClick={() => filters.setView(v)}>
                 {label}
               </button>
             ))}
@@ -286,9 +311,9 @@ function ExamenesTab({ grado, exams }: { grado: CatalogGrado; exams: { pdf: Cata
 
           {filtered.length === 0 ? (
             <p className="muted">Ningún examen coincide con el filtro.</p>
-          ) : view === "calendario" ? (
+          ) : filters.view === "calendario" ? (
             <CalendarMonthView events={calEvents} />
-          ) : view === "agenda" ? (
+          ) : filters.view === "agenda" ? (
             <AgendaView events={calEvents} />
           ) : (
             <ExamFlatList porConvocatoria={porConvocatoria} />
